@@ -1,0 +1,9 @@
+{
+  "name": "@learn2hire/database",
+  "version": "2.0.0",
+  "private": true,
+  "description": "PostgreSQL database schemas, migrations, seeds, and pgvector configuration",
+  "scripts": {
+    "test": "node test-ddl.js"
+  }
+}

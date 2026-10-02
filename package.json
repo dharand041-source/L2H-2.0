@@ -1,0 +1,27 @@
+{
+  "name": "learn-2-hire",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Learn-2-Hire Full-Stack Career Development & Employment Platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "dev:all": "concurrently \"npm run dev --workspace=apps/web\" \"npm run dev:api\"",
+    "dev:api": "uvicorn app.main:app --reload --app-dir apps/api --port 8000",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:phase0": "node scripts/test-phase0.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

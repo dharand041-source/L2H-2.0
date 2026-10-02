@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@300;400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Mandatory 5 Colors */
+  --color-orange: #E43D12;
+  --color-rose: #D6536D;
+  --color-pink: #FFA2B6;
+  --color-yellow: #EFB11D;
+  --color-cream: #EBE9E1;
+
+  /* Supporting Neutrals */
+  --color-ink: #171714;
+  --color-paper: #F7F5EF;
+
+  /* Fonts */
+  --font-display: 'Anton', 'Bebas Neue', sans-serif;
+  --font-body: 'Inter', 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Editorial Typography Clamps */
+.font-display-hero {
+  font-family: var(--font-display);
+  font-size: clamp(3.2rem, 8.5vw, 8.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.font-display-h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 5.5vw, 5.5rem);
+  line-height: 1.0;
+  letter-spacing: -0.015em;
+  text-transform: uppercase;
+}
+
+.font-display-h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3.5vw, 3.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.font-display-h3 {
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2.2vw, 2rem);
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+/* Swiss Editorial Utilities */
+.editorial-border {
+  border: 1.5px solid var(--color-ink);
+}
+
+.editorial-shadow {
+  box-shadow: 3px 3px 0px var(--color-ink);
+}
+
+.editorial-shadow-hover {
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.editorial-shadow-hover:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0px var(--color-ink);
+}
+
+.editorial-shadow-hover:active {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0px var(--color-ink);
+}
+
+.editorial-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--color-ink);
+}
+
+/* Accessibility: Respect Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
