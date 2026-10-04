@@ -1,27 +1,34 @@
 import React from 'react';
 
 export interface ProgressRingProps {
-  score: number; // 0 - 100
+  score?: number; // 0 - 100
+  progress?: number; // 0 - 100
   size?: number;
   strokeWidth?: number;
   label?: string;
+  color?: string;
 }
 
 export const ProgressRing: React.FC<ProgressRingProps> = ({
   score,
+  progress,
   size = 120,
   strokeWidth = 10,
   label = 'Readiness',
+  color,
 }) => {
-  const normalizedScore = Math.min(Math.max(score, 0), 100);
+  const value = progress !== undefined ? progress : (score !== undefined ? score : 0);
+  const normalizedScore = Math.min(Math.max(value, 0), 100);
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const strokeDashoffset = circumference - (normalizedScore / 100) * circumference;
 
-  let strokeColor = '#E43D12'; // Orange
-  if (normalizedScore >= 80) strokeColor = '#171714'; // Ink
-  else if (normalizedScore >= 60) strokeColor = '#EFB11D'; // Yellow
-  else if (normalizedScore >= 40) strokeColor = '#D6536D'; // Rose
+  let strokeColor = color || '#E43D12'; // Default Orange
+  if (!color) {
+    if (normalizedScore >= 80) strokeColor = '#171714'; // Ink
+    else if (normalizedScore >= 60) strokeColor = '#EFB11D'; // Yellow
+    else if (normalizedScore >= 40) strokeColor = '#D6536D'; // Rose
+  }
 
   return (
     <div className="relative inline-flex flex-col items-center justify-center">
