@@ -42,7 +42,23 @@ const config: Config = {
       },
       borderWidth: {
         'editorial': '1.5px',
-      }
+      },
+      letterSpacing: {
+        tighter: '0.015em',
+        tight: '0.03em',
+        normal: '0.04em',
+        wide: '0.065em',
+        wider: '0.095em',
+        widest: '0.14em',
+      },
+      lineHeight: {
+        none: '1.2',
+        tight: '1.3',
+        snug: '1.45',
+        normal: '1.6',
+        relaxed: '1.75',
+        loose: '2',
+      },
     },
   },
   plugins: [],

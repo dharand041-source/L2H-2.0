@@ -4,23 +4,7 @@ import { Button } from '../ui/button';
 
 export const EditorialNav: React.FC = () => {
   return (
-    <>
-      {/* Top Swiss Editorial Ticker */}
-      <div className="w-full bg-brand-ink text-brand-paper py-1.5 px-4 text-[11px] font-bold uppercase tracking-widest border-b border-brand-ink flex items-center justify-between overflow-hidden select-none">
-        <div className="flex items-center gap-3">
-          <span className="w-2 h-2 rounded-full bg-brand-yellow inline-block animate-pulse" />
-          <span>L2H CAREER OS 2.0</span>
-          <span className="hidden sm:inline text-brand-paper/50">|</span>
-          <span className="hidden sm:inline text-brand-paper/80">TECHNICAL & NON-TECHNICAL OCCUPATIONAL TAXONOMY</span>
-        </div>
-        <div className="flex items-center gap-4 text-brand-paper/90">
-          <span className="hidden md:inline">ESCO & O*NET ALIGNED</span>
-          <span className="text-brand-orange font-black">ZERO-SCRAPING INTEGRITY</span>
-        </div>
-      </div>
-
-      {/* Main Navigation Bar */}
-      <header className="w-full border-b-[1.5px] border-brand-ink bg-brand-cream/95 backdrop-blur-md sticky top-0 z-50">
+    <header className="w-full border-b-[1.5px] border-brand-ink bg-brand-cream/95 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           {/* Editorial Logo */}
           <Link href="/" className="flex items-center gap-3 group">
@@ -80,6 +64,5 @@ export const EditorialNav: React.FC = () => {
           </div>
         </div>
       </header>
-    </>
   );
 };

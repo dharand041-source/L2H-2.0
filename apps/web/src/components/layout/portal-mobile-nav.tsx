@@ -29,7 +29,12 @@ import { useCandidateState } from '@/lib/data/state-store';
 export const PortalMobileNav: React.FC = () => {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { signOut } = useCandidateState();
+  const { state, signOut } = useCandidateState();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const bottomNavItems = [
     { label: 'Home', href: ROUTES.app.dashboard, icon: Home },
@@ -67,13 +72,30 @@ export const PortalMobileNav: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div>
-              <div className="flex items-center justify-between pb-4 border-b border-brand-ink/20 mb-6">
-                <span className="font-display text-xl uppercase tracking-tight text-brand-ink">
-                  More Navigation
-                </span>
+              <div className="flex items-center justify-between pb-4 border-b border-brand-ink/20 mb-4">
+                <div className="flex items-center gap-2.5 overflow-hidden" suppressHydrationWarning>
+                  {mounted && state.user.avatarUrl ? (
+                    <img
+                      src={state.user.avatarUrl}
+                      alt={state.user.name || 'Candidate'}
+                      className="w-9 h-9 rounded-full object-cover border border-brand-ink shrink-0"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-brand-orange border border-brand-ink text-white font-display flex items-center justify-center text-sm shrink-0">
+                      {state.user.name ? state.user.name.charAt(0) : 'U'}
+                    </div>
+                  )}
+                  <div className="truncate" suppressHydrationWarning>
+                    <div className="text-xs font-bold text-brand-ink truncate">{state.user.name || 'Candidate'}</div>
+                    {state.user.email && (
+                      <div className="text-[10px] text-brand-ink/60 truncate">{state.user.email}</div>
+                    )}
+                  </div>
+                </div>
                 <button
                   onClick={() => setDrawerOpen(false)}
                   className="p-1 border border-brand-ink bg-brand-paper"
+                  aria-label="Close menu"
                 >
                   <X className="w-5 h-5" />
                 </button>

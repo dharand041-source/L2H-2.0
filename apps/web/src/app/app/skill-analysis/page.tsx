@@ -69,25 +69,21 @@ export default function SkillAnalysisPage() {
               Target Role Readiness: <span className="text-brand-orange">{state.readinessScore}%</span>
             </h2>
             <p className="text-sm text-brand-ink/85 font-medium leading-relaxed max-w-2xl">
-              Based on your multi-factor diagnostic and evidence history, you have satisfied 2 of 5 core competencies. 3 critical gaps are queued for structured remediation via open curricula.
+              {state.readinessScore === 0
+                ? 'Your calibrated readiness starts at 0%. Complete the calibrated diagnostic assessment or learning modules to benchmark your performance and grow your readiness percentage.'
+                : `Based on your multi-factor diagnostic and evidence history, you have achieved ${state.readinessScore}% competency readiness. Further modules are queued for progression.`}
             </p>
             <div className="pt-2">
-              <Link href={ROUTES.app.learning.roadmap}>
+              <Link href={ROUTES.app.assessments.baseline}>
                 <Button variant="accent" size="lg">
-                  Launch Custom Remediation Roadmap →
+                  {state.readinessScore === 0 ? 'Take Baseline Assessment (0% → Benchmark) →' : 'Launch Custom Remediation Roadmap →'}
                 </Button>
               </Link>
             </div>
           </div>
 
-          <div className="lg:col-span-4 flex flex-col items-center justify-center p-6 bg-brand-cream border border-brand-ink/30">
-            <ProgressRing progress={state.readinessScore} size={110} strokeWidth={9} color="#E43D12" />
-            <span className="font-display text-3xl font-bold text-brand-ink mt-3">
-              {state.readinessScore}%
-            </span>
-            <span className="text-xs font-bold uppercase text-brand-ink/70">
-              Calibrated Readout
-            </span>
+          <div className="lg:col-span-4 flex flex-col items-center justify-center p-6 bg-brand-cream border border-brand-ink/30 shadow-editorial-sm">
+            <ProgressRing progress={state.readinessScore} size={120} strokeWidth={10} color="#E43D12" label="Readiness" />
           </div>
         </div>
       </div>

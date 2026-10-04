@@ -2,7 +2,7 @@
 
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import { ROUTES } from '@/lib/routes';
 import { Button } from '@/components/ui/button';
@@ -10,12 +10,16 @@ import { supabase } from '@/lib/supabase';
 
 function SignUpForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlError = searchParams?.get('error');
+  const urlMessage = searchParams?.get('message');
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(urlError || null);
+  const [message, setMessage] = useState<string | null>(urlMessage || null);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +35,7 @@ function SignUpForm() {
           data: {
             full_name: name.trim(),
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?mode=signup&next=/onboarding`,
         },
       });
 
@@ -57,9 +61,11 @@ function SignUpForm() {
   const handleGoogleSignUp = async () => {
     setIsSubmitting(true);
     setError(null);
+    setMessage(null);
 
     try {
       const callbackUrl = new URL('/auth/callback', window.location.origin);
+      callbackUrl.searchParams.set('mode', 'signup');
       callbackUrl.searchParams.set('next', '/onboarding');
 
       const { error: oauthError } = await supabase.auth.signInWithOAuth({

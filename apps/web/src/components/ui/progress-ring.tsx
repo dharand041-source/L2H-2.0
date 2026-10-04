@@ -7,6 +7,8 @@ export interface ProgressRingProps {
   strokeWidth?: number;
   label?: string;
   color?: string;
+  showValue?: boolean;
+  centerIcon?: React.ReactNode;
 }
 
 export const ProgressRing: React.FC<ProgressRingProps> = ({
@@ -16,6 +18,8 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
   strokeWidth = 10,
   label = 'Readiness',
   color,
+  showValue = true,
+  centerIcon,
 }) => {
   const value = progress !== undefined ? progress : (score !== undefined ? score : 0);
   const normalizedScore = Math.min(Math.max(value, 0), 100);
@@ -56,16 +60,22 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
           className="transition-all duration-700 ease-out"
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-display text-2xl font-bold tracking-tight text-brand-ink">
-          {Math.round(normalizedScore)}%
-        </span>
-        {label && (
-          <span className="text-[10px] font-bold uppercase tracking-wider text-brand-ink/70">
-            {label}
+      {showValue ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="font-display text-2xl font-bold tracking-tight text-brand-ink">
+            {Math.round(normalizedScore)}%
           </span>
-        )}
-      </div>
+          {label && (
+            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-ink/70">
+              {label}
+            </span>
+          )}
+        </div>
+      ) : centerIcon ? (
+        <div className="absolute inset-0 flex items-center justify-center">
+          {centerIcon}
+        </div>
+      ) : null}
     </div>
   );
 };

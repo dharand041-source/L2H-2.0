@@ -37,11 +37,11 @@ export const TYPOGRAPHY_TOKENS = {
   },
 
   letterSpacing: {
-    tighter: '-0.03em',
-    tight: '-0.015em',
-    normal: '0',
-    wide: '0.04em',
-    widest: '0.12em',
+    tighter: '0.015em',
+    tight: '0.03em',
+    normal: '0.04em',
+    wide: '0.065em',
+    widest: '0.14em',
   }
 } as const;
 

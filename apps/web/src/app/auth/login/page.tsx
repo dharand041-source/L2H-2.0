@@ -3,7 +3,7 @@
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle } from 'lucide-react';
 import { ROUTES } from '@/lib/routes';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
@@ -12,17 +12,20 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlError = searchParams.get('error');
+  const urlMessage = searchParams.get('message');
   const next = searchParams.get('next');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [error, setError] = useState<string | null>(urlError);
+  const [message, setMessage] = useState<string | null>(urlMessage);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
     setError(null);
+    setMessage(null);
 
     try {
       const { data, error: authError } = await supabase.auth.signInWithPassword({
@@ -49,9 +52,11 @@ function LoginForm() {
   const handleGoogleLogin = async () => {
     setIsLoggingIn(true);
     setError(null);
+    setMessage(null);
 
     try {
       const callbackUrl = new URL('/auth/callback', window.location.origin);
+      callbackUrl.searchParams.set('mode', 'signin');
       if (next) {
         callbackUrl.searchParams.set('next', next);
       }
@@ -92,6 +97,13 @@ function LoginForm() {
         <div className="p-3 bg-red-50 border border-brand-rose text-brand-rose text-xs font-semibold flex items-start gap-2">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {message && (
+        <div className="p-3 bg-amber-50 border border-brand-yellow text-brand-ink text-xs font-semibold flex items-start gap-2">
+          <CheckCircle className="w-4 h-4 shrink-0 mt-0.5 text-brand-orange" />
+          <span>{message}</span>
         </div>
       )}
 

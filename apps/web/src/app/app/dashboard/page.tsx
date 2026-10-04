@@ -33,27 +33,33 @@ import { Badge } from '@/components/ui/badge';
 import { ProgressRing } from '@/components/ui/progress-ring';
 
 export default function DashboardPage() {
-  const { state, isHydrated } = useCandidateState();
+  const { state } = useCandidateState();
   const currentRole = getCareerBySlug(state.targetCareerSlug);
   const nextAction = getNextBestAction(state);
 
-  // Top critical skills with gaps
-  const criticalSkills = state.skills.filter(s => s.priority === 'CRITICAL' || s.priority === 'HIGH');
-  const matchedJobs = OPPORTUNITIES_CATALOG.slice(0, 3);
+  // Top critical skills with gaps (strictly deduplicated by skill name)
+  const skillsMap = new Map();
+  state.skills.forEach((s) => {
+    if (s && s.name && !skillsMap.has(s.name.toLowerCase().trim())) {
+      skillsMap.set(s.name.toLowerCase().trim(), s);
+    }
+  });
+  const uniqueSkills = Array.from(skillsMap.values());
+  const criticalSkills = uniqueSkills.filter(s => s.priority === 'CRITICAL' || s.priority === 'HIGH');
 
-  if (!isHydrated) {
-    return (
-      <div className="py-20 text-center">
-        <div className="w-10 h-10 border-2 border-brand-orange border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-sm font-bold uppercase tracking-wider text-brand-ink/60">
-          Loading Candidate Cockpit...
-        </p>
-      </div>
-    );
-  }
+  // Matched Opportunities: Filter out jobs already applied to (permanently remove duplicate job entries)
+  const appliedOpportunityIds = new Set(state.applications.map(a => a.opportunityId));
+  const matchedJobs = OPPORTUNITIES_CATALOG
+    .filter(job => !appliedOpportunityIds.has(job.id))
+    .sort((a, b) => {
+      if (a.roleSlug === state.targetCareerSlug && b.roleSlug !== state.targetCareerSlug) return -1;
+      if (b.roleSlug === state.targetCareerSlug && a.roleSlug !== state.targetCareerSlug) return 1;
+      return 0;
+    })
+    .slice(0, 3);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" suppressHydrationWarning>
       {/* ====================================================================
           1. TOP NEXT BEST ACTION BANNER (Dynamic Intelligence Engine)
       ==================================================================== */}
@@ -127,7 +133,14 @@ export default function DashboardPage() {
                 Calibrated Competency
               </div>
             </div>
-            <ProgressRing progress={state.readinessScore} size={64} strokeWidth={6} color="#EFB11D" />
+            <ProgressRing
+              progress={state.readinessScore}
+              size={64}
+              strokeWidth={6}
+              color="#EFB11D"
+              showValue={false}
+              centerIcon={<TrendingUp className="w-5 h-5 text-brand-yellow" />}
+            />
           </div>
           <div className="mt-4 pt-3 border-t border-brand-ink/10 flex items-center justify-between">
             <Link href={ROUTES.app.skills.analysis} className="text-xs font-bold uppercase text-brand-orange hover:underline flex items-center gap-1">
@@ -146,7 +159,9 @@ export default function DashboardPage() {
               <FolderGit2 className="w-4 h-4 text-brand-rose" />
             </div>
             <div className="font-display text-xl font-bold uppercase text-brand-ink truncate">
-              {state.activeProject?.title || 'Distributed Booking'}
+              {state.targetCareerSlug === 'frontend-developer' && (!state.activeProject || state.activeProject.title.includes('Booking'))
+                ? 'Interactive Design System & UI'
+                : (state.activeProject?.title || 'Interactive Design System')}
             </div>
             <div className="text-xs font-semibold text-brand-ink/70 mt-1">
               Milestone: <strong className="text-brand-rose">{state.activeProject?.milestoneCurrent || 2}</strong> / {state.activeProject?.milestoneTotal || 4} Completed
@@ -248,10 +263,10 @@ export default function DashboardPage() {
 
             <div className="mt-5 pt-4 border-t border-brand-ink/10 flex items-center justify-between text-xs">
               <span className="text-brand-ink/70 font-semibold">
-                Baseline Assessment Score: <strong className="text-brand-ink">{state.assessmentScore || 78}%</strong>
+                Baseline Assessment Score: <strong className="text-brand-ink">{state.assessmentScore !== undefined ? `${state.assessmentScore}%` : 'Not Taken (0%)'}</strong>
               </span>
               <Link href={ROUTES.app.assessments.baseline} className="font-bold text-brand-orange hover:underline">
-                Retake Diagnostic →
+                {state.assessmentScore !== undefined ? 'Retake Diagnostic →' : 'Take Diagnostic (0% → Benchmark) →'}
               </Link>
             </div>
           </div>
