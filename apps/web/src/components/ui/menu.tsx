@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface NavItem {
@@ -29,6 +29,7 @@ export interface UserProfileSidebarProps {
     onClick: () => void;
   };
   className?: string;
+  onClose?: () => void;
 }
 
 export const sidebarVariants = {
@@ -55,7 +56,7 @@ export const itemVariants = {
 };
 
 export const UserProfileSidebar = React.forwardRef<HTMLDivElement, UserProfileSidebarProps>(
-  ({ user, navItems, logoutItem, className }, ref) => {
+  ({ user, navItems, logoutItem, className, onClose }, ref) => {
     return (
       <motion.aside
         ref={ref}
@@ -69,16 +70,29 @@ export const UserProfileSidebar = React.forwardRef<HTMLDivElement, UserProfileSi
         aria-label="User Profile Menu"
       >
         {/* User Info Header */}
-        <motion.div variants={itemVariants} className="flex items-center space-x-3.5 p-1.5 shrink-0">
-          <img
-            src={user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
-            alt={`${user.name}'s avatar`}
-            className="h-11 w-11 rounded-full object-cover shrink-0 border border-brand-ink shadow-editorial-sm bg-brand-paper"
-          />
-          <div className="flex flex-col truncate">
-            <span className="font-bold text-base text-brand-ink truncate leading-tight tracking-tight">{user.name}</span>
-            <span className="text-xs font-semibold text-brand-ink/60 truncate leading-normal">{user.email}</span>
+        <motion.div variants={itemVariants} className="flex items-center justify-between p-1.5 shrink-0 gap-2">
+          <div className="flex items-center space-x-3.5 min-w-0">
+            <img
+              src={user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+              alt={`${user.name}'s avatar`}
+              className="h-11 w-11 rounded-full object-cover shrink-0 border border-brand-ink shadow-editorial-sm bg-brand-paper"
+            />
+            <div className="flex flex-col truncate">
+              <span className="font-bold text-base text-brand-ink truncate leading-tight tracking-tight">{user.name}</span>
+              <span className="text-xs font-semibold text-brand-ink/60 truncate leading-normal">{user.email}</span>
+            </div>
           </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="lg:hidden p-1.5 text-brand-ink hover:text-brand-orange hover:bg-brand-paper border border-brand-ink/30 transition-colors cursor-pointer shrink-0"
+              title="Close sidebar"
+              aria-label="Close sidebar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </motion.div>
 
         <motion.div variants={itemVariants} className="my-3.5 border-t border-brand-ink/15 shrink-0" />
@@ -107,6 +121,12 @@ export const UserProfileSidebar = React.forwardRef<HTMLDivElement, UserProfileSi
               </>
             );
 
+            const handleLinkClick = () => {
+              if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                onClose?.();
+              }
+            };
+
             return (
               <React.Fragment key={index}>
                 {item.isSeparator && <motion.div variants={itemVariants} className="h-5" />}
@@ -114,6 +134,7 @@ export const UserProfileSidebar = React.forwardRef<HTMLDivElement, UserProfileSi
                   <motion.div variants={itemVariants}>
                     <Link
                       href={item.href}
+                      onClick={handleLinkClick}
                       className={cn(
                         'group flex items-center rounded-lg px-3 py-2 text-xs uppercase tracking-wider transition-all',
                         activeClasses
@@ -126,6 +147,7 @@ export const UserProfileSidebar = React.forwardRef<HTMLDivElement, UserProfileSi
                   <motion.a
                     href={item.href}
                     variants={itemVariants}
+                    onClick={handleLinkClick}
                     className={cn(
                       'group flex items-center rounded-lg px-3 py-2 text-xs uppercase tracking-wider transition-all',
                       activeClasses

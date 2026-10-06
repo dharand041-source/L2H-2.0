@@ -11,19 +11,25 @@ function PortalLayoutInner({ children }: { children: React.ReactNode }) {
   const { isOpen, close } = useSidebar();
   const pathname = usePathname();
 
-  // Close sidebar on route change on mobile/tablet screens
+  // Close sidebar ONLY on actual route change on mobile/tablet screens
+  const prevPathnameRef = React.useRef(pathname);
   React.useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      close();
+    if (prevPathnameRef.current !== pathname) {
+      prevPathnameRef.current = pathname;
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+        close();
+      }
     }
   }, [pathname, close]);
 
-  // Lock scroll when sidebar is open
+  // Lock scroll when sidebar is open on mobile
   React.useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      if (isOpen) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = '';
+      }
     }
     return () => {
       document.body.style.overflow = '';
@@ -35,7 +41,10 @@ function PortalLayoutInner({ children }: { children: React.ReactNode }) {
       {/* Mobile / Tablet Overlay Backdrop */}
       {isOpen && (
         <div
-          onClick={close}
+          onClick={(e) => {
+            e.stopPropagation();
+            close();
+          }}
           className="fixed inset-0 bg-brand-ink/45 backdrop-blur-[2px] z-40 lg:hidden transition-opacity cursor-pointer"
           aria-label="Close sidebar overlay"
         />
@@ -51,6 +60,7 @@ function PortalLayoutInner({ children }: { children: React.ReactNode }) {
             ? 'translate-x-0 opacity-100 lg:w-64'
             : '-translate-x-full opacity-0 pointer-events-none lg:w-0'
         }`}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="w-full h-full">
           <PortalSidebar />

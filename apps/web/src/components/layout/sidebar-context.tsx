@@ -24,43 +24,51 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Initialize from localStorage or screen size on client
   useEffect(() => {
     try {
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+        // Mobile / tablet default to closed
+        setIsOpen(false);
+        return;
+      }
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored !== null) {
         setIsOpen(stored === 'true');
-      } else if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-        // Mobile / tablet default to closed
-        setIsOpen(false);
       }
     } catch {
       // Ignore storage errors
     }
   }, []);
 
-  const toggle = () => {
+  const toggle = React.useCallback(() => {
     setIsOpen((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem(STORAGE_KEY, String(next));
+        if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+          localStorage.setItem(STORAGE_KEY, String(next));
+        }
       } catch {
         // Ignore
       }
       return next;
     });
-  };
+  }, []);
 
-  const open = () => {
+  const open = React.useCallback(() => {
     setIsOpen(true);
     try {
-      localStorage.setItem(STORAGE_KEY, 'true');
+      if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+        localStorage.setItem(STORAGE_KEY, 'true');
+      }
     } catch {}
-  };
+  }, []);
 
-  const close = () => {
+  const close = React.useCallback(() => {
     setIsOpen(false);
     try {
-      localStorage.setItem(STORAGE_KEY, 'false');
+      if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+        localStorage.setItem(STORAGE_KEY, 'false');
+      }
     } catch {}
-  };
+  }, []);
 
   // Keyboard shortcut Ctrl+B or Cmd+B to toggle sidebar
   useEffect(() => {
@@ -72,10 +80,15 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [toggle]);
+
+  const value = React.useMemo(
+    () => ({ isOpen, toggle, open, close }),
+    [isOpen, toggle, open, close]
+  );
 
   return (
-    <SidebarContext.Provider value={{ isOpen, toggle, open, close }}>
+    <SidebarContext.Provider value={value}>
       {children}
     </SidebarContext.Provider>
   );

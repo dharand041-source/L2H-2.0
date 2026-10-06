@@ -26,10 +26,12 @@ import {
 import { ROUTES } from '@/lib/routes';
 import { useCandidateState } from '@/lib/data/state-store';
 import { UserProfileSidebar, type NavItem } from '@/components/ui/menu';
+import { useSidebar } from './sidebar-context';
 
 export const PortalSidebar: React.FC = () => {
   const pathname = usePathname();
   const { state, signOut } = useCandidateState();
+  const { close } = useSidebar();
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
@@ -170,6 +172,7 @@ export const PortalSidebar: React.FC = () => {
       user={user}
       navItems={navItems}
       logoutItem={logoutItem}
+      onClose={close}
       className="h-full w-full rounded-none border-y-0 border-l-0 border-r-[1.5px] border-brand-ink bg-brand-cream shadow-none max-w-none"
     />
   );

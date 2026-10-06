@@ -19,7 +19,11 @@ export const PortalTopbar: React.FC = () => {
       <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
         {/* Sidebar Toggle Button - visible and accessible on all device sizes */}
         <button
-          onClick={toggle}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggle();
+          }}
           className="inline-flex items-center justify-center p-1.5 sm:p-2 bg-brand-paper border border-brand-ink shadow-editorial-sm text-brand-ink hover:text-brand-orange hover:bg-brand-yellow/10 transition-all cursor-pointer shrink-0"
           title={isOpen ? 'Hide Sidebar (Ctrl+B)' : 'Show Sidebar (Ctrl+B)'}
           aria-label={isOpen ? 'Hide Sidebar' : 'Show Sidebar'}
