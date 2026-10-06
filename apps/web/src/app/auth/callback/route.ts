@@ -1,6 +1,45 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+function getOrigin(request: Request): string {
+  // 1. Check x-forwarded-host (standard for reverse proxies like Vercel, AWS, Cloudflare, Nginx)
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+  if (forwardedHost) {
+    const host = forwardedHost.split(',')[0].trim();
+    return `${forwardedProto}://${host}`;
+  }
+
+  // 2. Check NEXT_PUBLIC_APP_URL environment variable if set
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '');
+  }
+
+  // 3. Fall back to host header
+  const host = request.headers.get('host');
+  if (host) {
+    const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+    const proto = isLocal ? 'http' : (request.headers.get('x-forwarded-proto') || 'https');
+    return `${proto}://${host}`;
+  }
+
+  // 4. Default to request.url origin
+  return new URL(request.url).origin;
+}
+
+function createRedirectUrl(origin: string, path: string, params?: Record<string, string | null | undefined>): URL {
+  const safePath = path.startsWith('/') && !path.startsWith('//') ? path : `/${path.replace(/^(\/)+/, '')}`;
+  const redirectUrl = new URL(safePath, origin);
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && value !== '') {
+        redirectUrl.searchParams.set(key, value);
+      }
+    });
+  }
+  return redirectUrl;
+}
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
@@ -8,12 +47,12 @@ export async function GET(request: Request) {
   const mode = requestUrl.searchParams.get('mode'); // 'signin' | 'signup'
   const error = requestUrl.searchParams.get('error');
   const errorDescription = requestUrl.searchParams.get('error_description');
+  const origin = getOrigin(request);
 
   if (error) {
     console.error('OAuth provider error:', error, errorDescription);
-    const redirectUrl = new URL(mode === 'signup' ? '/auth/signup' : '/auth/login', request.url);
-    redirectUrl.searchParams.set('error', errorDescription || error);
-    return NextResponse.redirect(redirectUrl);
+    const target = mode === 'signup' ? '/auth/signup' : '/auth/login';
+    return NextResponse.redirect(createRedirectUrl(origin, target, { error: errorDescription || error }));
   }
 
   if (code) {
@@ -22,9 +61,8 @@ export async function GET(request: Request) {
 
     if (exchangeError) {
       console.error('Failed to exchange OAuth code for session:', exchangeError.message);
-      const redirectUrl = new URL(mode === 'signup' ? '/auth/signup' : '/auth/login', request.url);
-      redirectUrl.searchParams.set('error', exchangeError.message);
-      return NextResponse.redirect(redirectUrl);
+      const target = mode === 'signup' ? '/auth/signup' : '/auth/login';
+      return NextResponse.redirect(createRedirectUrl(origin, target, { error: exchangeError.message }));
     }
 
     const user = data.user;
@@ -53,12 +91,11 @@ export async function GET(request: Request) {
         // =========================================================================
         if (mode === 'signin' && !hasExistingAccount) {
           await supabase.auth.signOut();
-          const redirectUrl = new URL('/auth/signup', request.url);
-          redirectUrl.searchParams.set(
-            'error',
-            'No registered account found with this Google email. You must sign up first before signing in.'
+          return NextResponse.redirect(
+            createRedirectUrl(origin, '/auth/signup', {
+              error: 'No registered account found with this Google email. You must sign up first before signing in.',
+            })
           );
-          return NextResponse.redirect(redirectUrl);
         }
 
         // =========================================================================
@@ -68,12 +105,11 @@ export async function GET(request: Request) {
         // =========================================================================
         if (mode === 'signup' && hasExistingAccount) {
           await supabase.auth.signOut();
-          const redirectUrl = new URL('/auth/login', request.url);
-          redirectUrl.searchParams.set(
-            'message',
-            'An account already exists with this Google email. Please sign in to your account.'
+          return NextResponse.redirect(
+            createRedirectUrl(origin, '/auth/login', {
+              message: 'An account already exists with this Google email. Please sign in to your account.',
+            })
           );
-          return NextResponse.redirect(redirectUrl);
         }
 
         // =========================================================================
@@ -106,27 +142,29 @@ export async function GET(request: Request) {
         }
 
         // Determine destination:
-        // 1. Explicit next param takes priority
-        if (next) {
-          return NextResponse.redirect(new URL(next, request.url));
+        // 1. Explicit next param takes priority (validated to be safe relative path)
+        if (next && next.startsWith('/') && !next.startsWith('//')) {
+          return NextResponse.redirect(createRedirectUrl(origin, next));
         }
 
         // 2. Brand new signups or uncalibrated candidates go to onboarding
         if (mode === 'signup' || !existingProfile?.target_role_id) {
-          return NextResponse.redirect(new URL('/onboarding', request.url));
+          return NextResponse.redirect(createRedirectUrl(origin, '/onboarding'));
         }
 
         // 3. Returning candidate with target role goes to dashboard
-        return NextResponse.redirect(new URL('/app/dashboard', request.url));
+        return NextResponse.redirect(createRedirectUrl(origin, '/app/dashboard'));
       } catch (profileErr) {
         console.error('Profile verification or creation error:', profileErr);
-        return NextResponse.redirect(new URL('/app/dashboard', request.url));
+        return NextResponse.redirect(createRedirectUrl(origin, '/app/dashboard'));
       }
     }
   }
 
   // If no code was provided
-  const redirectUrl = new URL('/auth/login', request.url);
-  redirectUrl.searchParams.set('error', 'Authentication authorization code was not received.');
-  return NextResponse.redirect(redirectUrl);
+  return NextResponse.redirect(
+    createRedirectUrl(origin, '/auth/login', {
+      error: 'Authentication authorization code was not received.',
+    })
+  );
 }

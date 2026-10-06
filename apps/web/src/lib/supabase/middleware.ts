@@ -1,6 +1,29 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+function getSafeRedirectUrl(request: NextRequest, targetPath: string, searchParams?: Record<string, string>): URL {
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+
+  let url: URL;
+  if (forwardedHost && !forwardedHost.includes('localhost')) {
+    const host = forwardedHost.split(',')[0].trim();
+    url = new URL(targetPath, `${forwardedProto}://${host}`);
+  } else if (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost')) {
+    url = new URL(targetPath, process.env.NEXT_PUBLIC_APP_URL);
+  } else {
+    url = request.nextUrl.clone();
+    url.pathname = targetPath;
+  }
+
+  if (searchParams) {
+    Object.entries(searchParams).forEach(([k, v]) => {
+      url.searchParams.set(k, v);
+    });
+  }
+  return url;
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -37,10 +60,7 @@ export async function updateSession(request: NextRequest) {
     }
 
     if (isProtectedPath) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/auth/login';
-      url.searchParams.set('next', pathname);
-      return NextResponse.redirect(url);
+      return NextResponse.redirect(getSafeRedirectUrl(request, '/auth/login', { next: pathname }));
     }
     return supabaseResponse;
   }
@@ -73,16 +93,11 @@ export async function updateSession(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (!user && isProtectedPath && process.env.NODE_ENV === 'production') {
-      const url = request.nextUrl.clone();
-      url.pathname = '/auth/login';
-      url.searchParams.set('next', pathname);
-      return NextResponse.redirect(url);
+      return NextResponse.redirect(getSafeRedirectUrl(request, '/auth/login', { next: pathname }));
     }
 
     if (user && isAuthPath) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/app/dashboard';
-      return NextResponse.redirect(url);
+      return NextResponse.redirect(getSafeRedirectUrl(request, '/app/dashboard'));
     }
   } catch (err) {
     console.error('Supabase middleware auth error:', err);
