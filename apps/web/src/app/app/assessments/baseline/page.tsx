@@ -132,10 +132,10 @@ export default function BaselineAssessmentRunnerPage() {
       </div>
 
       {/* Main Question Card */}
-      <div className="bg-brand-paper border-[1.5px] border-brand-ink p-6 sm:p-8 shadow-editorial space-y-6">
+      <div className="bg-brand-paper border-[1.5px] border-brand-ink p-4 sm:p-8 shadow-editorial space-y-6">
         {/* Metadata Badges */}
-        <div className="flex items-center justify-between pb-3 border-b border-brand-ink/10">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-brand-ink/10">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="default">{currentQ.skillName}</Badge>
             <Badge variant="yellow">{currentQ.difficulty}</Badge>
             <span className="text-xs font-semibold text-brand-ink/60">
@@ -154,7 +154,7 @@ export default function BaselineAssessmentRunnerPage() {
 
         {/* Code Snippet (if provided) */}
         {currentQ.codeSnippet && (
-          <div className="border border-brand-ink bg-brand-ink text-brand-paper p-4 font-mono text-xs overflow-x-auto rounded-none">
+          <div className="border border-brand-ink bg-brand-ink text-brand-paper p-3 sm:p-4 font-mono text-xs overflow-x-auto rounded-none">
             <pre>{currentQ.codeSnippet}</pre>
           </div>
         )}
@@ -170,7 +170,7 @@ export default function BaselineAssessmentRunnerPage() {
                 key={option}
                 type="button"
                 onClick={() => handleSelectOption(option)}
-                className={`w-full p-4 text-left border-[1.5px] transition-all flex items-start gap-3 ${
+                className={`w-full p-3.5 sm:p-4 text-left border-[1.5px] transition-all flex items-start gap-3 ${
                   isSelected
                     ? 'bg-brand-orange text-white border-brand-ink shadow-editorial-sm -translate-y-0.5'
                     : 'bg-brand-cream text-brand-ink border-brand-ink/40 hover:bg-brand-paper hover:border-brand-ink'
@@ -194,14 +194,15 @@ export default function BaselineAssessmentRunnerPage() {
         </div>
 
         {/* Navigation Controls */}
-        <div className="pt-6 border-t border-brand-ink/20 flex items-center justify-between">
+        <div className="pt-6 border-t border-brand-ink/20 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <Button
             variant="outline"
             size="md"
             onClick={handlePrev}
             disabled={currentIndex === 0}
+            className="w-full sm:w-auto justify-center"
           >
-            ← Previous
+            &larr; Previous
           </Button>
 
           {isLastQuestion ? (
@@ -210,16 +211,18 @@ export default function BaselineAssessmentRunnerPage() {
               size="md"
               onClick={handleSubmitAssessment}
               disabled={isSubmitting}
+              className="w-full sm:w-auto justify-center"
             >
-              {isSubmitting ? 'Evaluating Diagnostic...' : 'Submit Assessment →'}
+              {isSubmitting ? 'Evaluating Diagnostic...' : 'Submit Assessment \u2192'}
             </Button>
           ) : (
             <Button
               variant="primary"
               size="md"
               onClick={handleNext}
+              className="w-full sm:w-auto justify-center"
             >
-              Next Question →
+              Next Question &rarr;
             </Button>
           )}
         </div>

@@ -218,14 +218,14 @@ export default function HomePage() {
         {/* ====================================================================
             HERO SECTION: SWISS EDITORIAL COMPOSITION
         ==================================================================== */}
-        <section className="relative border-b-[1.5px] border-brand-ink py-16 lg:py-24 px-4 sm:px-6 lg:px-8">
+        <section className="relative border-b-[1.5px] border-brand-ink py-8 sm:py-14 lg:py-20 px-3 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             {/* Top metadata tags */}
-            <div className="flex flex-wrap items-center gap-3 mb-6">
-              <span className="editorial-badge bg-brand-yellow text-brand-ink">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+              <span className="editorial-badge bg-brand-yellow text-brand-ink text-[10px] sm:text-xs">
                 Enterprise Product Architecture
               </span>
-              <span className="editorial-badge bg-brand-paper text-brand-ink">
+              <span className="editorial-badge bg-brand-paper text-brand-ink text-[10px] sm:text-xs">
                 Technical & Non-Technical Careers
               </span>
               <span className="text-xs font-bold uppercase tracking-widest text-brand-ink/70 hidden sm:inline">
@@ -234,7 +234,7 @@ export default function HomePage() {
             </div>
 
             {/* Massive Display Statement */}
-            <div className="border-b-[1.5px] border-brand-ink pb-10">
+            <div className="border-b-[1.5px] border-brand-ink pb-6 sm:pb-10">
               <h1 className="font-display-hero text-brand-ink tracking-tight">
                 LEARN. PROVE. <br />
                 <span className="text-brand-orange inline-block hover:scale-[1.01] transition-transform">
@@ -242,9 +242,9 @@ export default function HomePage() {
                 </span>
               </h1>
               
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-6 items-end">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 pt-4 sm:pt-6 items-end">
                 <div className="lg:col-span-8">
-                  <p className="text-xl sm:text-2xl text-brand-ink/90 font-normal leading-relaxed max-w-3xl">
+                  <p className="text-base sm:text-xl lg:text-2xl text-brand-ink/90 font-normal leading-relaxed max-w-3xl">
                     The end-to-end career operating system. Measure your verified baseline, bridge precise skill gaps with open curricula, build auditable portfolio evidence, and match with legitimate job opportunities.
                   </p>
                 </div>

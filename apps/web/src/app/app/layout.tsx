@@ -3,7 +3,6 @@
 import React from 'react';
 import { PortalSidebar } from '@/components/layout/portal-sidebar';
 import { PortalTopbar } from '@/components/layout/portal-topbar';
-import { PortalMobileNav } from '@/components/layout/portal-mobile-nav';
 import { SidebarProvider, useSidebar } from '@/components/layout/sidebar-context';
 
 import { usePathname } from 'next/navigation';
@@ -43,7 +42,7 @@ function PortalLayoutInner({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Responsive Sidebar:
-          - Mobile / Tablet (< 1024px): Slide-over drawer over the screen (zero compression on content)
+          - Mobile / Tablet (< 1024px): Slide-over drawer over the screen (exact same website sidebar, zero content compression)
           - Desktop (>= 1024px): Docked Sidebar with smooth collapse/expand
       */}
       <div
@@ -63,7 +62,7 @@ function PortalLayoutInner({ children }: { children: React.ReactNode }) {
         <PortalTopbar />
         
         <main
-          className={`flex-1 p-3 sm:p-5 md:p-6 lg:p-8 pb-24 lg:pb-8 transition-colors ${
+          className={`flex-1 p-3 sm:p-5 md:p-6 lg:p-8 pb-6 sm:pb-8 lg:pb-8 transition-colors ${
             isOpen ? 'overflow-hidden' : 'overflow-y-auto'
           }`}
         >
@@ -71,9 +70,6 @@ function PortalLayoutInner({ children }: { children: React.ReactNode }) {
             {children}
           </div>
         </main>
-
-        {/* Mobile Navigation Dock & Drawer */}
-        <PortalMobileNav />
       </div>
     </div>
   );

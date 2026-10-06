@@ -78,28 +78,28 @@ export default function OnboardingWizardPage() {
     <div className="min-h-screen bg-brand-cream text-brand-ink flex flex-col justify-between p-4 sm:p-6 lg:p-8 bg-grid-subtle">
       {/* Brand Header */}
       <div className="max-w-3xl w-full mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <Link href={ROUTES.public.home} className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-brand-orange border-[1.5px] border-brand-ink flex items-center justify-center font-display text-white text-2xl shadow-editorial">
+        <div className="flex items-center justify-between gap-2 mb-6 sm:mb-8">
+          <Link href={ROUTES.public.home} className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-brand-orange border-[1.5px] border-brand-ink flex items-center justify-center font-display text-white text-xl sm:text-2xl shadow-editorial shrink-0">
               L2H
             </div>
-            <div className="flex flex-col">
-              <span className="font-display text-2xl tracking-tight leading-none text-brand-ink">
+            <div className="flex flex-col min-w-0">
+              <span className="font-display text-xl sm:text-2xl tracking-tight leading-none text-brand-ink whitespace-nowrap">
                 LEARN-2-HIRE
               </span>
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-ink/75 mt-0.5">
+              <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-brand-ink/75 mt-0.5 truncate">
                 Onboarding &bull; Step {step} of 3
               </span>
             </div>
           </Link>
 
-          <span className="editorial-badge bg-brand-yellow text-brand-ink text-xs">
+          <span className="editorial-badge bg-brand-yellow text-brand-ink text-[10px] sm:text-xs shrink-0 whitespace-nowrap">
             Profile Setup
           </span>
         </div>
 
         {/* Multi-Step Wizard Card */}
-        <div className="bg-brand-paper border-[1.5px] border-brand-ink p-6 sm:p-10 shadow-editorial space-y-6">
+        <div className="bg-brand-paper border-[1.5px] border-brand-ink p-4 sm:p-8 md:p-10 shadow-editorial space-y-6">
           {/* STEP 1: Basic Identity & Education */}
           {step === 1 && (
             <div className="space-y-6">
@@ -199,7 +199,7 @@ export default function OnboardingWizardPage() {
                   <label className="block text-xs font-extrabold uppercase tracking-wider text-brand-ink/70 mb-1">
                     Preferred Work Type
                   </label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                     {[
                       { id: 'REMOTE_OR_HYBRID', label: 'Remote / Hybrid' },
                       { id: 'ON_SITE', label: 'On-Site Office' },
@@ -209,7 +209,7 @@ export default function OnboardingWizardPage() {
                         key={w.id}
                         type="button"
                         onClick={() => setWorkType(w.id)}
-                        className={`p-3 text-xs font-bold uppercase border transition-all ${
+                        className={`p-3 text-xs font-bold uppercase border transition-all text-center flex items-center justify-center ${
                           workType === w.id
                             ? 'bg-brand-ink text-white border-brand-ink'
                             : 'bg-brand-cream text-brand-ink border-brand-ink/30 hover:bg-brand-paper'
@@ -277,20 +277,30 @@ export default function OnboardingWizardPage() {
           )}
 
           {/* Navigation Controls */}
-          <div className="pt-6 border-t border-brand-ink/20 flex items-center justify-between">
+          <div className="pt-6 border-t border-brand-ink/20 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
             {step > 1 ? (
-              <Button variant="outline" size="md" onClick={() => setStep(step - 1)}>
-                <ArrowLeft className="w-4 h-4 mr-1.5 inline" /> Previous Step
+              <Button
+                variant="outline"
+                size="md"
+                onClick={() => setStep(step - 1)}
+                className="w-full sm:w-auto justify-center"
+              >
+                <ArrowLeft className="w-4 h-4 mr-1.5 inline shrink-0" /> Previous Step
               </Button>
             ) : (
-              <div />
+              <div className="hidden sm:block" />
             )}
 
-            <Button variant="primary" size="md" onClick={handleNext}>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleNext}
+              className="w-full sm:w-auto justify-center text-center"
+            >
               {step === 3 ? (
-                <span>Lock Target Role &amp; Start Baseline Diagnostic →</span>
+                <span className="text-xs sm:text-sm font-bold">Lock Target Role &amp; Start Diagnostic &rarr;</span>
               ) : (
-                <span>Next Step <ArrowRight className="w-4 h-4 ml-1.5 inline" /></span>
+                <span>Next Step <ArrowRight className="w-4 h-4 ml-1.5 inline shrink-0" /></span>
               )}
             </Button>
           </div>
