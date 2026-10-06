@@ -63,28 +63,28 @@ export default function DashboardPage() {
       {/* ====================================================================
           1. TOP NEXT BEST ACTION BANNER (Dynamic Intelligence Engine)
       ==================================================================== */}
-      <section className="bg-brand-ink text-brand-paper border-[1.5px] border-brand-ink p-6 sm:p-8 shadow-editorial relative overflow-hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="editorial-badge bg-brand-orange text-white">
+      <section className="bg-brand-ink text-brand-paper border-[1.5px] border-brand-ink p-4 sm:p-6 lg:p-8 shadow-editorial relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 lg:gap-6 relative z-10">
+          <div className="space-y-2 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="editorial-badge bg-brand-orange text-white text-[10px] sm:text-xs">
                 Next Best Action
               </span>
               <span className="text-xs font-mono text-brand-yellow font-bold uppercase tracking-wider">
                 {nextAction.stageLabel}
               </span>
             </div>
-            <h1 className="font-display text-3xl sm:text-4xl uppercase tracking-tight text-white">
+            <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl uppercase tracking-tight text-white break-words">
               {nextAction.title}
             </h1>
-            <p className="text-sm text-brand-paper/80 max-w-2xl font-normal leading-relaxed">
+            <p className="text-xs sm:text-sm text-brand-paper/80 max-w-2xl font-normal leading-relaxed">
               {nextAction.description}
             </p>
           </div>
 
-          <div className="shrink-0 flex items-center gap-3">
-            <Link href={nextAction.ctaUrl}>
-              <Button variant="accent" size="lg" className="whitespace-nowrap">
+          <div className="shrink-0 flex items-center gap-3 w-full sm:w-auto">
+            <Link href={nextAction.ctaUrl} className="w-full sm:w-auto">
+              <Button variant="accent" size="lg" className="w-full sm:w-auto whitespace-nowrap">
                 {nextAction.ctaText} <ArrowRight className="ml-2 w-4 h-4 inline" />
               </Button>
             </Link>
@@ -93,9 +93,9 @@ export default function DashboardPage() {
       </section>
 
       {/* ====================================================================
-          2. CANDIDATE TELEMETRY & HERO SNAPSHOT (Swiss 4-Column Grid)
+          2. CANDIDATE TELEMETRY & HERO SNAPSHOT (Responsive 4-Card System)
       ==================================================================== */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
         {/* Card 1: Target Career */}
         <Card accentBorder="orange" className="flex flex-col justify-between">
           <div>

@@ -15,18 +15,18 @@ export const PortalTopbar: React.FC = () => {
 
   return (
     <header className="h-16 border-b-[1.5px] border-brand-ink bg-brand-cream px-3 sm:px-6 flex items-center justify-between shrink-0 gap-2 sm:gap-3">
-      {/* Left controls: Sidebar toggle (desktop only) & Target Career Status */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-        {/* Sidebar Toggle Button - symbol only */}
+      {/* Left controls: Sidebar toggle & Target Career Status */}
+      <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+        {/* Sidebar Toggle Button - visible and accessible on all device sizes */}
         <button
           onClick={toggle}
-          className="hidden lg:inline-flex items-center justify-center p-2 bg-brand-paper border border-brand-ink shadow-editorial-sm text-brand-ink hover:text-brand-orange hover:bg-brand-yellow/10 transition-all cursor-pointer shrink-0"
+          className="inline-flex items-center justify-center p-1.5 sm:p-2 bg-brand-paper border border-brand-ink shadow-editorial-sm text-brand-ink hover:text-brand-orange hover:bg-brand-yellow/10 transition-all cursor-pointer shrink-0"
           title={isOpen ? 'Hide Sidebar (Ctrl+B)' : 'Show Sidebar (Ctrl+B)'}
           aria-label={isOpen ? 'Hide Sidebar' : 'Show Sidebar'}
         >
           <svg
             viewBox="0 0 24 24"
-            className="w-5 h-5 text-brand-ink hover:text-brand-orange transition-colors"
+            className="w-4 h-4 sm:w-5 sm:h-5 text-brand-ink hover:text-brand-orange transition-colors"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
             aria-hidden="true"
@@ -45,7 +45,7 @@ export const PortalTopbar: React.FC = () => {
         <Link
           href={ROUTES.app.career.discover}
           prefetch={true}
-          className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-brand-paper border border-brand-ink shadow-editorial-sm text-xs font-bold uppercase tracking-wider text-brand-ink hover:text-brand-orange transition-colors truncate max-w-[140px] sm:max-w-none shrink"
+          className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 bg-brand-paper border border-brand-ink shadow-editorial-sm text-xs font-bold uppercase tracking-wider text-brand-ink hover:text-brand-orange transition-colors truncate max-w-[120px] xs:max-w-[160px] sm:max-w-none shrink"
         >
           <Target className="w-3.5 h-3.5 text-brand-orange shrink-0" />
           <span className="truncate">{currentRole ? currentRole.title : 'Select Career Goal'}</span>
@@ -56,15 +56,15 @@ export const PortalTopbar: React.FC = () => {
         </span>
       </div>
 
-      {/* Right Controls - guaranteed to fit and keep Settings button visible */}
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+      {/* Right Controls - guaranteed to fit smoothly on all screens */}
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
         {/* Readiness Meter Pill */}
         <Link
           href={ROUTES.app.skills.analysis}
-          className="inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 bg-brand-paper border border-brand-ink text-xs font-bold uppercase tracking-wider text-brand-ink hover:bg-brand-yellow/20 transition-colors shadow-editorial-sm shrink-0"
+          className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 bg-brand-paper border border-brand-ink text-xs font-bold uppercase tracking-wider text-brand-ink hover:bg-brand-yellow/20 transition-colors shadow-editorial-sm shrink-0"
         >
           <Award className="w-3.5 h-3.5 text-brand-yellow shrink-0" />
-          <span>Readiness: <strong className="text-brand-orange">{state.readinessScore}%</strong></span>
+          <span><span className="hidden sm:inline">Readiness: </span><strong className="text-brand-orange">{state.readinessScore}%</strong></span>
         </Link>
 
         {/* Notifications Icon with count */}

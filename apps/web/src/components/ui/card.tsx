@@ -26,7 +26,7 @@ export const Card: React.FC<CardProps> = ({
     <div
       className={twMerge(
         clsx(
-          'bg-brand-paper border-[1.5px] border-brand-ink shadow-editorial p-6',
+          'bg-brand-paper border-[1.5px] border-brand-ink shadow-editorial p-4 sm:p-6',
           accentStyles[accentBorder],
           hoverable && 'editorial-shadow-hover cursor-pointer',
           className

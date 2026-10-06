@@ -21,12 +21,15 @@ const STORAGE_KEY = 'l2h_sidebar_visible';
 export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isOpen, setIsOpen] = useState<boolean>(true);
 
-  // Initialize from localStorage on client
+  // Initialize from localStorage or screen size on client
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored !== null) {
         setIsOpen(stored === 'true');
+      } else if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+        // Mobile / tablet default to closed
+        setIsOpen(false);
       }
     } catch {
       // Ignore storage errors

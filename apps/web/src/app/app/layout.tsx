@@ -6,9 +6,20 @@ import { PortalTopbar } from '@/components/layout/portal-topbar';
 import { PortalMobileNav } from '@/components/layout/portal-mobile-nav';
 import { SidebarProvider, useSidebar } from '@/components/layout/sidebar-context';
 
-function PortalLayoutInner({ children }: { children: React.ReactNode }) {
-  const { isOpen } = useSidebar();
+import { usePathname } from 'next/navigation';
 
+function PortalLayoutInner({ children }: { children: React.ReactNode }) {
+  const { isOpen, close } = useSidebar();
+  const pathname = usePathname();
+
+  // Close sidebar on route change on mobile/tablet screens
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      close();
+    }
+  }, [pathname, close]);
+
+  // Lock scroll when sidebar is open
   React.useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -22,13 +33,27 @@ function PortalLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="h-screen bg-brand-cream text-brand-ink flex overflow-hidden">
-      {/* Desktop Portal Sidebar with animated show/hide */}
+      {/* Mobile / Tablet Overlay Backdrop */}
+      {isOpen && (
+        <div
+          onClick={close}
+          className="fixed inset-0 bg-brand-ink/45 backdrop-blur-[2px] z-40 lg:hidden transition-opacity cursor-pointer"
+          aria-label="Close sidebar overlay"
+        />
+      )}
+
+      {/* Responsive Sidebar:
+          - Mobile / Tablet (< 1024px): Slide-over drawer over the screen (zero compression on content)
+          - Desktop (>= 1024px): Docked Sidebar with smooth collapse/expand
+      */}
       <div
-        className={`hidden lg:flex h-screen sticky top-0 shrink-0 transition-all duration-300 ease-in-out z-30 ${
-          isOpen ? 'w-64 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full overflow-hidden pointer-events-none'
+        className={`fixed inset-y-0 left-0 z-50 h-full w-72 max-w-[85vw] transition-all duration-300 ease-in-out shadow-2xl lg:shadow-none lg:static lg:h-screen lg:shrink-0 lg:z-30 ${
+          isOpen
+            ? 'translate-x-0 opacity-100 lg:w-64'
+            : '-translate-x-full opacity-0 pointer-events-none lg:w-0'
         }`}
       >
-        <div className="w-64 h-full">
+        <div className="w-full h-full">
           <PortalSidebar />
         </div>
       </div>
@@ -38,11 +63,11 @@ function PortalLayoutInner({ children }: { children: React.ReactNode }) {
         <PortalTopbar />
         
         <main
-          className={`flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 ${
+          className={`flex-1 p-3 sm:p-5 md:p-6 lg:p-8 pb-24 lg:pb-8 transition-colors ${
             isOpen ? 'overflow-hidden' : 'overflow-y-auto'
           }`}
         >
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-7xl mx-auto min-w-0">
             {children}
           </div>
         </main>
