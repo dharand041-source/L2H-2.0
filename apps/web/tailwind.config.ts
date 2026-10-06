@@ -10,6 +10,25 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // UI & Card Tokens
+        border: 'hsl(var(--border, 220 13% 91%))',
+        background: 'hsl(var(--background, 0 0% 100%))',
+        card: {
+          DEFAULT: 'hsl(var(--card, 0 0% 100%))',
+          foreground: 'hsl(var(--card-foreground, 240 10% 3.9%))',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted, 240 4.8% 95.9%))',
+          foreground: 'hsl(var(--muted-foreground, 240 3.8% 46.1%))',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent, 240 4.8% 95.9%))',
+          foreground: 'hsl(var(--accent-foreground, 240 5.9% 10%))',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive, 0 84.2% 60.2%))',
+          foreground: 'hsl(var(--destructive-foreground, 0 0% 98%))',
+        },
         // Mandatory 5 Brand Colors
         brand: {
           orange: '#E43D12',
@@ -28,7 +47,7 @@ const config: Config = {
           cream: '#EBE9E1',
           ink: '#171714',
           paper: '#F7F5EF',
-        }
+        },
       },
       fontFamily: {
         display: ['var(--font-display)', 'Anton', 'Bebas Neue', 'sans-serif'],
