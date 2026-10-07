@@ -210,17 +210,38 @@ export interface CandidateReadinessAnalysis {
 
 export type QuestionType = 
   | 'MCQ' 
-  | 'MULTI_SELECT' 
+  | 'MULTI_SELECT'
+  | 'TRUE_FALSE'
+  | 'CODE_OUTPUT'
+  | 'CODE_COMPLETION'
   | 'CODING' 
-  | 'SQL' 
   | 'DEBUGGING' 
+  | 'SQL'
+  | 'DATABASE_DESIGN'
+  | 'API_DESIGN'
+  | 'SYSTEM_DESIGN'
+  | 'ARCHITECTURE'
   | 'SCENARIO' 
-  | 'CASE_STUDY' 
+  | 'CASE_STUDY'
+  | 'PROJECT_TASK'
+  | 'PRACTICAL_TASK'
+  | 'APTITUDE'
+  | 'LOGICAL_REASONING'
+  | 'NUMERICAL_REASONING'
+  | 'DATA_INTERPRETATION'
+  | 'VERBAL_REASONING'
+  | 'COMMUNICATION'
+  | 'BEHAVIORAL'
+  | 'ROLE_PLAY'
+  | 'PROJECT_DEFENSE'
+  | 'TECHNICAL_INTERVIEW'
+  | 'HR_INTERVIEW'
+  | 'FOLLOW_UP'
   | 'SHORT_ANSWER';
 
 export interface QuestionSource {
   id: UUID;
-  name: string; // e.g. iGET, Sansal, ProSculpt, BANKI, L2H Original
+  name: string; // e.g. iGET, Sansal, ProSculpt, BANKI, L2H Original, GeeksforGeeks, W3Schools
   url?: string;
   license: string;
   isRedistributable: boolean;
@@ -229,21 +250,56 @@ export interface QuestionSource {
 export interface Question {
   id: UUID;
   skillId: UUID;
+  careerRoleId?: UUID;
+  competencyId?: UUID;
   topic: string;
+  subtopic?: string;
   difficulty: DifficultyLevel;
+  targetLevel?: DifficultyLevel;
   questionType: QuestionType;
+  questionFamily?: string;
+  questionVariant?: string;
   prompt: string;
+  codeSnippet?: string;
   options?: string[]; // For MCQ/Multi-select
   correctAnswer: string | string[]; // Answer key or expected output
   explanation: string;
+  solution?: string;
   distractorExplanations?: Record<string, string>;
+  evaluationData?: Record<string, any>;
   conceptTested: string;
-  sourceId: UUID;
+  expectedTimeSeconds?: number;
+  points?: number;
+  sourceId?: UUID;
   sourceType: ContentSourceType;
+  sourceName?: string;
   sourceUrl?: string;
+  sourceYear?: number;
+  sourceCompany?: string;
+  sourceConfidence?: 'HIGH' | 'MEDIUM' | 'COMMUNITY_REPORTED' | 'LOW';
+  originalityStatus?: 'ORIGINAL_L2H' | 'PATTERN_INSPIRED' | 'VERIFIED_PUBLIC_REPORT';
+  fingerprint?: string;
+  normalizedHash?: string;
+  variantGroupId?: string;
   qualityScore: number; // 0.0 - 5.0
   usageCount: number;
+  status?: 'DRAFT' | 'REVIEW' | 'APPROVED' | 'ACTIVE' | 'RETIRED';
   createdAt: ISODateString;
+}
+
+export interface UserQuestionHistory {
+  id: UUID;
+  userId: UUID;
+  questionId?: UUID;
+  normalizedHash: string;
+  questionFamily?: string;
+  variantGroupId?: string;
+  attemptId?: UUID;
+  careerRoleId?: UUID;
+  seenAt: ISODateString;
+  answeredCorrectly: boolean;
+  score: number;
+  timeTaken: number;
 }
 
 export interface AssessmentBlueprint {

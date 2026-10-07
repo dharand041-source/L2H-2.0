@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Clock,
@@ -10,9 +10,17 @@ import {
   AlertTriangle,
   ArrowRight,
   Terminal,
-  HelpCircle
+  HelpCircle,
+  Sparkles,
+  BookOpen
 } from 'lucide-react';
-import { QUESTION_BANK, QuestionItem } from '@/lib/data/questions-data';
+import {
+  generateAssessmentBlueprint,
+  buildAssessmentSession,
+  evaluateAssessmentSession,
+  AssessmentQuestion,
+  UserHistoryRecord
+} from '@/lib/assessment';
 import { useCandidateState } from '@/lib/data/state-store';
 import { getCareerBySlug } from '@/lib/data/careers-data';
 import { ROUTES } from '@/lib/routes';
@@ -25,10 +33,21 @@ export default function BaselineAssessmentRunnerPage() {
   const { state, recordAssessmentCompletion } = useCandidateState();
   const currentRole = getCareerBySlug(state.targetCareerSlug);
 
-  // Filter questions for the current role or fallback
-  const testQuestions = QUESTION_BANK.filter(
-    (q) => q.roleSlug === state.targetCareerSlug || q.roleSlug === 'full-stack-developer'
-  );
+  // Build dynamic blueprint and session dynamically for the current career role
+  const testQuestions = useMemo(() => {
+    const roleSlug = state.targetCareerSlug || 'full-stack-developer';
+    const blueprint = generateAssessmentBlueprint(roleSlug, 'BASELINE', 'MEDIUM');
+    const existingHistory: UserHistoryRecord[] = (state.seenQuestionIds || []).map((id) => ({
+      questionId: id,
+      normalizedHash: id,
+      questionFamily: 'PREV',
+      variantGroupId: 'PREV_GRP',
+      seenAt: new Date().toISOString(),
+      answeredCorrectly: true,
+      timeTakenSeconds: 45,
+    }));
+    return buildAssessmentSession(blueprint, existingHistory);
+  }, [state.targetCareerSlug, state.seenQuestionIds]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
@@ -74,20 +93,31 @@ export default function BaselineAssessmentRunnerPage() {
   const handleSubmitAssessment = async () => {
     setIsSubmitting(true);
 
-    // Compute raw accuracy
-    let correctCount = 0;
-    testQuestions.forEach((q) => {
-      if (selectedAnswers[q.id] === q.correctAnswer) {
-        correctCount++;
-      }
-    });
+    // Evaluate dynamically using the universal evaluation engine
+    const roleSlug = state.targetCareerSlug || 'full-stack-developer';
+    const evalResult = evaluateAssessmentSession(testQuestions, selectedAnswers, roleSlug);
 
-    const finalScore = Math.max(Math.round((correctCount / Math.max(totalQuestions, 1)) * 100), 45);
+    // Prepare seen questions for anti-repetition registry
+    const seenQuestionsPayload = testQuestions.map((q) => ({
+      questionId: q.id,
+      normalizedHash: q.normalizedHash,
+      questionFamily: q.questionFamily,
+      variantGroupId: q.variantGroupId,
+      correct: selectedAnswers[q.id] === q.correctAnswer,
+      score: selectedAnswers[q.id] === q.correctAnswer ? 100 : 0,
+    }));
 
     // Commit results to state store and Supabase persistence
-    await recordAssessmentCompletion(finalScore, {
-      questions: testQuestions.map((q) => ({ id: q.id, prompt: q.prompt })),
+    await recordAssessmentCompletion(evalResult.score, {
+      questions: testQuestions.map((q) => ({ id: q.id, prompt: q.questionText || q.prompt || '' })),
       answers: selectedAnswers,
+      calibratedSkills: evalResult.skillBreakdown.map((sb) => ({
+        skillName: sb.skillName,
+        calibratedLevel: sb.level,
+        score: sb.score,
+        confidence: 0.85,
+      })),
+      seenQuestions: seenQuestionsPayload,
     });
 
     setTimeout(() => {
@@ -140,19 +170,20 @@ export default function BaselineAssessmentRunnerPage() {
         <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-brand-ink/10">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="default">{currentQ.skillName}</Badge>
-            <Badge variant="yellow">{currentQ.difficulty}</Badge>
+            <Badge level={currentQ.targetLevel as any}>{currentQ.difficulty} ({currentQ.targetLevel})</Badge>
+            <Badge variant="paper">{currentQ.questionType.replace('_', ' ')}</Badge>
             <span className="text-xs font-semibold text-brand-ink/60">
               Topic: {currentQ.topic}
             </span>
           </div>
           <span className="text-[10px] font-mono text-brand-ink/50 uppercase">
-            ID: {currentQ.id}
+            Family: {currentQ.questionFamily}
           </span>
         </div>
 
         {/* Prompt */}
         <h2 className="text-lg sm:text-xl font-semibold text-brand-ink leading-relaxed">
-          {currentQ.prompt}
+          {currentQ.questionText || (currentQ as any).prompt}
         </h2>
 
         {/* Code Snippet (if provided) */}

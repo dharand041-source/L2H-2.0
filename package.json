@@ -15,7 +15,8 @@
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "test:phase0": "node scripts/test-phase0.js"
+    "test:phase0": "node scripts/test-phase0.js",
+    "test:universal": "npx tsx scripts/test-universal-question-engine.ts"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

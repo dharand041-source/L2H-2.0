@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -13,8 +13,16 @@ import {
   Sparkles,
   Award,
   RefreshCw,
-  Clock
+  Clock,
+  HelpCircle,
+  MessageSquare
 } from 'lucide-react';
+import {
+  getInitialInterviewQuestions,
+  evaluateInterviewResponse,
+  generateContextualFollowUp,
+  InterviewTurn
+} from '@/lib/assessment';
 import { useCandidateState } from '@/lib/data/state-store';
 import { getCareerBySlug } from '@/lib/data/careers-data';
 import { ROUTES } from '@/lib/routes';
@@ -30,39 +38,42 @@ export default function MockInterviewSimulationPage() {
   const currentRole = getCareerBySlug(state.targetCareerSlug);
 
   const [difficulty, setDifficulty] = useState<'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT'>('INTERMEDIATE');
+  const [questions, setQuestions] = useState<InterviewTurn[]>(() =>
+    getInitialInterviewQuestions(state.targetCareerSlug || 'full-stack-developer')
+  );
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [candidateResponse, setCandidateResponse] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [scorecard, setScorecard] = useState<any | null>(null);
+  const [hasInjectedFollowUp, setHasInjectedFollowUp] = useState(false);
 
-  const mockQuestions = [
-    {
-      q: 'Can you explain how Node.js handles asynchronous operations using the event loop, and what happens when CPU-bound work blocks the main thread?',
-      type: 'Technical & Architecture',
-      expectedConcepts: ['Libuv thread pool', 'Event loop phases', 'process.nextTick vs setImmediate', 'Worker threads']
-    },
-    {
-      q: 'How would you architect a database schema for an event ticketing system to prevent overselling of high-demand seats during concurrent requests?',
-      type: 'System Design & Databases',
-      expectedConcepts: ['Pessimistic locking (SELECT FOR UPDATE)', 'Distributed locks via Redis', 'ACID transactions', 'Idempotency']
-    },
-    {
-      q: 'Tell me about a time you encountered an unexpected production bug or performance bottleneck. How did you isolate the root cause and ensure it did not recur?',
-      type: 'Behavioral & Accountability (STAR)',
-      expectedConcepts: ['Situation', 'Task', 'Action with telemetry', 'Result & Post-Mortem documentation']
-    }
-  ];
+  // Sync questions when role changes
+  useEffect(() => {
+    setQuestions(getInitialInterviewQuestions(state.targetCareerSlug || 'full-stack-developer'));
+    setCurrentQIndex(0);
+    setCandidateResponse('');
+    setScorecard(null);
+    setHasInjectedFollowUp(false);
+  }, [state.targetCareerSlug]);
 
-  const currentQuestion = mockQuestions[currentQIndex];
+  const currentQuestion = questions[currentQIndex] || questions[0];
 
   const handleEvaluateAnswer = async () => {
+    if (!currentQuestion || !candidateResponse.trim()) return;
     setIsEvaluating(true);
 
-    const overallScore = 87;
-    const strengths = ['Clear terminology', 'Covered libuv abstraction', 'Proposed distributed architecture'];
-    const growthAreas = ['Could elaborate slightly more on memory footprint trade-offs'];
-    const feedbackText = 'Excellent articulation of event-driven non-blocking I/O. Accurately highlighted the risk of blocking the main thread and properly suggested offloading CPU computation to worker threads or background message queues.';
+    const evalResult = evaluateInterviewResponse(currentQuestion, candidateResponse);
+
+    // Contextual Follow-Up Engine (injects if on a primary technical/system question and hasn't yet)
+    let followUpQ: InterviewTurn | null = null;
+    if (
+      !hasInjectedFollowUp &&
+      (currentQuestion.stage === 'TECHNICAL' || currentQuestion.stage === 'SYSTEM_DESIGN') &&
+      candidateResponse.trim().length > 25
+    ) {
+      followUpQ = generateContextualFollowUp(currentQuestion, candidateResponse);
+    }
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -70,8 +81,8 @@ export default function MockInterviewSimulationPage() {
         const { data: sessionRows } = await supabase.from('interview_sessions').insert({
           user_id: user.id,
           target_role_id: '50000000-0000-0000-0000-000000000001',
-          session_type: 'TECHNICAL',
-          level: 'L3',
+          session_type: currentQuestion.stage,
+          level: difficulty === 'BEGINNER' ? 'L1' : difficulty === 'ADVANCED' ? 'L4' : difficulty === 'EXPERT' ? 'L5' : 'L3',
           status: 'COMPLETED',
           completed_at: new Date().toISOString(),
         }).select();
@@ -79,14 +90,14 @@ export default function MockInterviewSimulationPage() {
         if (sessionRows && sessionRows[0]?.id) {
           await supabase.from('interview_feedback').insert({
             session_id: sessionRows[0].id,
-            technical_correctness_score: 88,
-            communication_score: 84,
-            problem_solving_score: 90,
-            structural_clarity_score: 86,
-            overall_score: overallScore,
-            strengths,
-            areas_for_improvement: growthAreas,
-            detailed_report: feedbackText,
+            technical_correctness_score: evalResult.technicalCorrectness,
+            communication_score: evalResult.communication,
+            problem_solving_score: evalResult.problemSolving,
+            structural_clarity_score: evalResult.structuralClarity,
+            overall_score: evalResult.overallScore,
+            strengths: evalResult.strengths,
+            areas_for_improvement: evalResult.growthAreas,
+            detailed_report: evalResult.detailedReport,
           });
         }
       }
@@ -97,26 +108,38 @@ export default function MockInterviewSimulationPage() {
     setTimeout(() => {
       setIsEvaluating(false);
       setScorecard({
-        technicalAccuracy: 88,
-        communicationScore: 84,
-        tradeoffReasoning: 90,
-        overallScore,
-        feedback: feedbackText,
-        strengths,
-        growthAreas,
+        technicalAccuracy: evalResult.technicalCorrectness,
+        communicationScore: evalResult.communication,
+        tradeoffReasoning: evalResult.problemSolving,
+        structuralClarity: evalResult.structuralClarity,
+        overallScore: evalResult.overallScore,
+        feedback: evalResult.detailedReport,
+        strengths: evalResult.strengths,
+        growthAreas: evalResult.growthAreas,
+        hasFollowUp: !!followUpQ,
       });
 
-      // Update candidate state
+      // Inject the follow-up question right after current question if applicable
+      if (followUpQ) {
+        setQuestions((prev) => {
+          const nextQuestions = [...prev];
+          nextQuestions.splice(currentQIndex + 1, 0, followUpQ!);
+          return nextQuestions;
+        });
+        setHasInjectedFollowUp(true);
+      }
+
+      // Update candidate state with genuine interview score
       updateState((prev) => ({
         ...prev,
-        interviewScore: overallScore,
+        interviewScore: evalResult.overallScore,
         stage: 'RESUME_READY',
       }));
-    }, 1200);
+    }, 900);
   };
 
   const handleNextQuestion = () => {
-    if (currentQIndex < mockQuestions.length - 1) {
+    if (currentQIndex < questions.length - 1) {
       setCurrentQIndex((prev) => prev + 1);
       setCandidateResponse('');
       setScorecard(null);
@@ -144,7 +167,7 @@ export default function MockInterviewSimulationPage() {
             Target Difficulty Calibration
           </span>
           <span className="font-display text-lg font-bold uppercase text-brand-ink">
-            Question {currentQIndex + 1} of {mockQuestions.length}
+            Question {currentQIndex + 1} of {questions.length}
           </span>
         </div>
 
@@ -169,13 +192,16 @@ export default function MockInterviewSimulationPage() {
       <div className="bg-brand-paper border-[1.5px] border-brand-ink p-6 sm:p-8 shadow-editorial space-y-6">
         <div className="flex items-center justify-between pb-3 border-b border-brand-ink/20">
           <div className="flex items-center gap-2">
-            <Badge variant="yellow">{currentQuestion.type}</Badge>
+            <Badge variant="yellow">{currentQuestion.stage.replace('_', ' ')}</Badge>
             <Badge variant="default">{difficulty}</Badge>
+            {currentQuestion.stage === 'FOLLOW_UP' && (
+              <Badge variant="rose">DYNAMIC FOLLOW-UP</Badge>
+            )}
           </div>
           <button
             onClick={() => {
               if ('speechSynthesis' in window) {
-                const utterance = new SpeechSynthesisUtterance(currentQuestion.q);
+                const utterance = new SpeechSynthesisUtterance(currentQuestion.questionText);
                 window.speechSynthesis.speak(utterance);
               }
             }}
@@ -186,7 +212,7 @@ export default function MockInterviewSimulationPage() {
         </div>
 
         <h2 className="text-xl sm:text-2xl font-semibold text-brand-ink leading-relaxed">
-          &ldquo;{currentQuestion.q}&rdquo;
+          &ldquo;{currentQuestion.questionText}&rdquo;
         </h2>
 
         {/* Expected Concepts */}
@@ -296,7 +322,11 @@ export default function MockInterviewSimulationPage() {
             </Link>
 
             <Button variant="outline" size="md" onClick={handleNextQuestion}>
-              {currentQIndex === mockQuestions.length - 1 ? 'Finish Simulation' : 'Next Question →'}
+              {currentQIndex === questions.length - 1
+                ? 'Finish Simulation'
+                : scorecard.hasFollowUp
+                ? 'Address Follow-Up Question \u2192'
+                : 'Next Question \u2192'}
             </Button>
           </div>
         </div>

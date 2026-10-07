@@ -1,11 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Clock, ShieldCheck, ArrowRight, ArrowLeft } from 'lucide-react';
-import { QUESTION_BANK } from '@/lib/data/questions-data';
+import {
+  generateAssessmentBlueprint,
+  buildAssessmentSession,
+  evaluateAssessmentSession,
+  AssessmentQuestion,
+  UserHistoryRecord
+} from '@/lib/assessment';
 import { useCandidateState } from '@/lib/data/state-store';
+import { getCareerBySlug } from '@/lib/data/careers-data';
 import { ROUTES } from '@/lib/routes';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -14,10 +21,31 @@ import { Badge } from '@/components/ui/badge';
 export default function DynamicAssessmentRunnerPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params?.id as string;
+  const id = (params?.id as string) || 'baseline';
   const { state, recordAssessmentCompletion } = useCandidateState();
+  const roleSlug = state.targetCareerSlug || 'full-stack-developer';
+  const currentRole = getCareerBySlug(roleSlug);
 
-  const questions = QUESTION_BANK.slice(0, 5);
+  // Dynamic blueprint and anti-repetition question selection
+  const questions = useMemo(() => {
+    let blueprintType: 'BASELINE' | 'TECHNICAL_SPECIALTY' | 'COMPANY_PATTERN' | 'APTITUDE' = 'BASELINE';
+    if (id.includes('aptitude')) blueprintType = 'APTITUDE';
+    else if (id.includes('technical') || id.includes('specialty')) blueprintType = 'TECHNICAL_SPECIALTY';
+    else if (id.includes('company')) blueprintType = 'COMPANY_PATTERN';
+
+    const blueprint = generateAssessmentBlueprint(roleSlug, blueprintType, 'MEDIUM');
+    const existingHistory: UserHistoryRecord[] = (state.seenQuestionIds || []).map((qId) => ({
+      questionId: qId,
+      normalizedHash: qId,
+      questionFamily: 'PREV',
+      variantGroupId: 'PREV_GRP',
+      seenAt: new Date().toISOString(),
+      answeredCorrectly: true,
+      timeTakenSeconds: 45,
+    }));
+    return buildAssessmentSession(blueprint, existingHistory);
+  }, [id, roleSlug, state.seenQuestionIds]);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,12 +65,34 @@ export default function DynamicAssessmentRunnerPage() {
     if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setIsSubmitting(true);
-    recordAssessmentCompletion(82);
+    const evalResult = evaluateAssessmentSession(questions, selectedAnswers, roleSlug);
+
+    const seenQuestionsPayload = questions.map((q) => ({
+      questionId: q.id,
+      normalizedHash: q.normalizedHash,
+      questionFamily: q.questionFamily,
+      variantGroupId: q.variantGroupId,
+      correct: selectedAnswers[q.id] === q.correctAnswer,
+      score: selectedAnswers[q.id] === q.correctAnswer ? 100 : 0,
+    }));
+
+    await recordAssessmentCompletion(evalResult.score, {
+      questions: questions.map((q) => ({ id: q.id, prompt: q.questionText || q.prompt || '' })),
+      answers: selectedAnswers,
+      calibratedSkills: evalResult.skillBreakdown.map((sb) => ({
+        skillName: sb.skillName,
+        calibratedLevel: sb.level,
+        score: sb.score,
+        confidence: 0.85,
+      })),
+      seenQuestions: seenQuestionsPayload,
+    });
+
     setTimeout(() => {
       router.push(ROUTES.app.assessments.results(id));
-    }, 600);
+    }, 400);
   };
 
   return (
@@ -52,7 +102,7 @@ export default function DynamicAssessmentRunnerPage() {
           <ArrowLeft className="w-4 h-4" /> All Assessments
         </Link>
         <span className="text-xs font-bold uppercase text-brand-orange">
-          Assessment: {id}
+          Assessment: {id} &bull; {currentRole?.title || 'Target Role'}
         </span>
       </div>
 
@@ -60,7 +110,8 @@ export default function DynamicAssessmentRunnerPage() {
         <div className="flex items-center justify-between pb-3 border-b border-brand-ink/20">
           <div className="flex items-center gap-2">
             <Badge variant="default">{currentQ.skillName}</Badge>
-            <Badge variant="yellow">{currentQ.difficulty}</Badge>
+            <Badge level={currentQ.targetLevel as any}>{currentQ.difficulty} ({currentQ.targetLevel})</Badge>
+            <Badge variant="paper">{currentQ.questionType.replace('_', ' ')}</Badge>
           </div>
           <span className="text-xs font-semibold text-brand-ink/60">
             Question {currentIndex + 1} of {questions.length}
@@ -68,7 +119,7 @@ export default function DynamicAssessmentRunnerPage() {
         </div>
 
         <h2 className="text-lg sm:text-xl font-semibold text-brand-ink leading-relaxed">
-          {currentQ.prompt}
+          {currentQ.questionText || (currentQ as any).prompt}
         </h2>
 
         {currentQ.codeSnippet && (
@@ -105,15 +156,15 @@ export default function DynamicAssessmentRunnerPage() {
 
         <div className="pt-6 border-t border-brand-ink/20 flex items-center justify-between">
           <Button variant="outline" size="md" onClick={handlePrev} disabled={currentIndex === 0}>
-            ← Previous
+            &larr; Previous
           </Button>
           {isLast ? (
             <Button variant="accent" size="md" onClick={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? 'Evaluating...' : 'Complete & View Results →'}
+              {isSubmitting ? 'Evaluating Diagnostic...' : 'Complete & View Results \u2192'}
             </Button>
           ) : (
             <Button variant="primary" size="md" onClick={handleNext}>
-              Next Question →
+              Next Question &rarr;
             </Button>
           )}
         </div>

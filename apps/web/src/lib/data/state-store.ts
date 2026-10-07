@@ -602,7 +602,24 @@ export function useCandidateState() {
 
   const recordAssessmentCompletion = async (
     score: number,
-    details?: { questions?: Array<{ id: string; prompt: string }>; answers?: Record<string, string> }
+    details?: {
+      questions?: Array<{ id: string; prompt: string }>;
+      answers?: Record<string, string>;
+      calibratedSkills?: Array<{
+        skillName: string;
+        calibratedLevel: 'L0' | 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
+        score: number;
+        confidence?: number;
+      }>;
+      seenQuestions?: Array<{
+        questionId: string;
+        normalizedHash: string;
+        questionFamily?: string;
+        variantGroupId?: string;
+        correct?: boolean;
+        score?: number;
+      }>;
+    }
   ) => {
     const currentSlug = globalCandidateState.targetCareerSlug;
     const role = getCareerBySlug(currentSlug);
@@ -612,15 +629,23 @@ export function useCandidateState() {
     const achievedLvlNum = parseInt(achievedLevel.replace('L', ''), 10);
 
     const updatedSkills: UserSkillItem[] = globalCandidateState.skills.map((s) => {
+      const calibrated = details?.calibratedSkills?.find(
+        (cs) => cs.skillName.toLowerCase() === s.name.toLowerCase() ||
+                s.name.toLowerCase().includes(cs.skillName.toLowerCase()) ||
+                cs.skillName.toLowerCase().includes(s.name.toLowerCase())
+      );
+
       const reqLvlNum = parseInt(s.requiredLevel.replace('L', ''), 10) || 3;
-      const newCurLvlNum = Math.min(achievedLvlNum, reqLvlNum);
-      const newCurLevel = `L${newCurLvlNum}` as UserSkillItem['currentLevel'];
-      const newGap = Math.max(0, reqLvlNum - newCurLvlNum);
+      const curLvl = calibrated?.calibratedLevel || (achievedLvlNum ? `L${Math.min(achievedLvlNum, reqLvlNum)}` : 'L1');
+      const curLvlNum = parseInt(curLvl.replace('L', ''), 10) || 1;
+      const newGap = Math.max(0, reqLvlNum - curLvlNum);
+      const conf = calibrated?.confidence ?? Math.min(Math.round((score / 100) * 100) / 100, 0.95);
+
       return {
         ...s,
-        currentLevel: newCurLevel,
+        currentLevel: curLvl as UserSkillItem['currentLevel'],
         gap: newGap,
-        confidence: Math.min(Math.round((score / 100) * 100) / 100, 0.95),
+        confidence: conf,
         evidenceCount: (s.evidenceCount || 0) + 1,
         priority: newGap === 0 ? ('SATISFIED' as const) : newGap >= 2 ? ('CRITICAL' as const) : ('HIGH' as const),
       };
@@ -628,18 +653,45 @@ export function useCandidateState() {
 
     const newReadiness = calculateReadinessScore(updatedSkills, score);
 
+    // Track seen question IDs in state
+    const newSeenIds = details?.seenQuestions
+      ? Array.from(new Set([...(globalCandidateState.seenQuestionIds || []), ...details.seenQuestions.map(q => q.questionId)]))
+      : globalCandidateState.seenQuestionIds;
+
     // Update in-memory state immediately for instant feedback
     updateState({
       assessmentScore: score,
       stage: 'SKILL_ANALYZED',
       readinessScore: newReadiness,
       skills: updatedSkills,
+      seenQuestionIds: newSeenIds,
     });
 
     // Background Supabase persistence
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        // Record to user_question_history if seenQuestions provided
+        if (details?.seenQuestions && details.seenQuestions.length > 0) {
+          try {
+            const historyRows = details.seenQuestions.map((sq) => ({
+              user_id: user.id,
+              question_id: sq.questionId.length === 36 ? sq.questionId : '00000000-0000-0000-0000-000000000001',
+              normalized_hash: sq.normalizedHash,
+              question_family: sq.questionFamily || 'GENERAL',
+              variant_group_id: sq.variantGroupId || 'VAR_GEN',
+              career_role_id: '50000000-0000-0000-0000-000000000001',
+              answered_correctly: sq.correct ?? true,
+              score: sq.score ?? 100,
+              time_taken_seconds: 60,
+              seen_at: new Date().toISOString(),
+            }));
+            await supabase.from('user_question_history').insert(historyRows);
+          } catch (histErr) {
+            console.warn('user_question_history persist note:', histErr);
+          }
+        }
+
         // 1. Record assessment attempt
         const { data: attemptRows, error: attemptErr } = await supabase
           .from('assessment_attempts')
