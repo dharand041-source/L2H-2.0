@@ -47,8 +47,19 @@ export interface CandidateState {
   };
   stage: JourneyStage;
   targetCareerSlug: string;
+  targetCareerRoleId?: string;
   readinessScore: number; // 0 - 100
   skills: UserSkillItem[];
+  careerHistory?: Record<
+    string,
+    {
+      skills: UserSkillItem[];
+      assessmentScore?: number;
+      readinessScore: number;
+      stage: JourneyStage;
+      lastUpdated: string;
+    }
+  >;
   seenQuestionIds: string[];
   assessmentScore?: number;
   activeProject: {
@@ -157,6 +168,24 @@ export function getOpportunityUuid(id: string): string {
   return `80000000-0000-0000-0000-${hex}`;
 }
 
+export function getRoleUuid(slug: string): string {
+  const canonicalMap: Record<string, string> = {
+    'full-stack-developer': '50000000-0000-0000-0000-000000000001',
+    'associate-product-manager': '50000000-0000-0000-0000-000000000002',
+    'technical-product-manager': '50000000-0000-0000-0000-000000000002',
+    'digital-marketing-specialist': '50000000-0000-0000-0000-000000000003',
+  };
+  if (canonicalMap[slug]) return canonicalMap[slug];
+  let hash = 0;
+  const key = slug || 'role';
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash << 5) - hash + key.charCodeAt(i);
+    hash |= 0;
+  }
+  const hex = Math.abs(hash).toString(16).padStart(12, '0').slice(0, 12);
+  return `50000000-0000-0000-0000-${hex}`;
+}
+
 const DEFAULT_STATE: CandidateState = {
   isLoggedIn: false,
   user: {
@@ -258,10 +287,16 @@ export function sanitizeState(state: CandidateState): CandidateState {
     }
   }
 
+  const careerHistory = (state.careerHistory && typeof state.careerHistory === 'object')
+    ? state.careerHistory
+    : {};
+
   return {
     ...state,
+    targetCareerRoleId: state.targetCareerRoleId || getRoleUuid(state.targetCareerSlug || 'full-stack-developer'),
     skills,
     readinessScore,
+    careerHistory,
     applications: Array.from(appsMap.values()),
     seenQuestionIds,
     resume: {
@@ -486,9 +521,28 @@ function ensureSupabaseSync() {
             }))
           : globalCandidateState.applications;
 
+        let targetCareerSlug = globalCandidateState.targetCareerSlug;
+        if (profile?.target_role_id) {
+          const matchedRole = CAREER_ROLES_CATALOG.find(
+            (c) => getRoleUuid(c.slug) === profile.target_role_id
+          );
+          if (matchedRole) {
+            targetCareerSlug = matchedRole.slug;
+          }
+        } else if (profile?.headline) {
+          const matchedRole = CAREER_ROLES_CATALOG.find(
+            (c) => c.title.toLowerCase() === profile.headline.toLowerCase()
+          );
+          if (matchedRole) {
+            targetCareerSlug = matchedRole.slug;
+          }
+        }
+
         const next: CandidateState = {
           ...globalCandidateState,
           isLoggedIn: true,
+          targetCareerSlug,
+          targetCareerRoleId: getRoleUuid(targetCareerSlug),
           user: {
             id: user.id,
             name: profile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Candidate',
@@ -548,8 +602,25 @@ export function useCandidateState() {
     stateListeners.add(setState);
     ensureSupabaseSync();
 
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          const sanitized = sanitizeState(parsed);
+          globalCandidateState = sanitized;
+          setState(sanitized);
+        } catch {}
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorage);
+    }
+
     return () => {
       stateListeners.delete(setState);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', handleStorage);
+      }
     };
   }, []);
 
@@ -562,26 +633,64 @@ export function useCandidateState() {
     const role = getCareerBySlug(slug);
     if (!role) return;
 
-    const initialSkills: UserSkillItem[] = role.requiredSkills.map((s) => {
-      const reqNum = parseInt(s.level.replace('L', ''), 10) || 3;
-      return {
-        name: s.name,
-        currentLevel: 'L0',
-        requiredLevel: s.level,
-        gap: reqNum,
-        confidence: 0,
-        evidenceCount: 0,
-        priority: reqNum >= 4 ? ('CRITICAL' as const) : ('HIGH' as const),
-      };
-    });
+    const prevSlug = globalCandidateState.targetCareerSlug;
+    // Snapshot current role's progress into careerHistory if it had skills/evaluations
+    const currentSnapshot = {
+      skills: globalCandidateState.skills,
+      assessmentScore: globalCandidateState.assessmentScore,
+      readinessScore: globalCandidateState.readinessScore,
+      stage: globalCandidateState.stage,
+      lastUpdated: new Date().toISOString(),
+    };
 
-    updateState({
+    const updatedHistory = {
+      ...(globalCandidateState.careerHistory || {}),
+      [prevSlug]: currentSnapshot,
+    };
+
+    // If candidate has historical progress for this new target slug, restore it!
+    const historicalForNewRole = updatedHistory[slug];
+
+    let nextSkills: UserSkillItem[];
+    let nextReadiness: number;
+    let nextAssessmentScore: number | undefined;
+    let nextStage: JourneyStage = 'CAREER_SELECTED';
+
+    if (historicalForNewRole && historicalForNewRole.skills?.length > 0) {
+      nextSkills = historicalForNewRole.skills;
+      nextReadiness = historicalForNewRole.readinessScore || 0;
+      nextAssessmentScore = historicalForNewRole.assessmentScore;
+      nextStage = historicalForNewRole.stage || (nextAssessmentScore ? 'SKILL_ANALYZED' : 'CAREER_SELECTED');
+    } else {
+      nextSkills = role.requiredSkills.map((s) => {
+        const reqNum = parseInt(s.level.replace('L', ''), 10) || 3;
+        return {
+          name: s.name,
+          currentLevel: 'L0',
+          requiredLevel: s.level,
+          gap: reqNum,
+          confidence: 0,
+          evidenceCount: 0,
+          priority: reqNum >= 4 ? ('CRITICAL' as const) : ('HIGH' as const),
+        };
+      });
+      nextReadiness = 0;
+      nextAssessmentScore = undefined;
+      nextStage = 'CAREER_SELECTED';
+    }
+
+    const nextState: CandidateState = {
+      ...globalCandidateState,
       targetCareerSlug: slug,
-      stage: 'CAREER_SELECTED',
-      skills: initialSkills,
-      readinessScore: 0,
-      assessmentScore: undefined,
-    });
+      targetCareerRoleId: getRoleUuid(slug),
+      careerHistory: updatedHistory,
+      stage: nextStage,
+      skills: nextSkills,
+      readinessScore: nextReadiness,
+      assessmentScore: nextAssessmentScore,
+    };
+
+    notifyListeners(nextState);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -589,8 +698,10 @@ export function useCandidateState() {
         await supabase
           .from('profiles')
           .update({
+            target_role_id: getRoleUuid(slug),
             headline: role.title,
             career_track: role.track,
+            readiness_score: nextReadiness,
             updated_at: new Date().toISOString(),
           })
           .eq('id', user.id);
@@ -658,6 +769,17 @@ export function useCandidateState() {
       ? Array.from(new Set([...(globalCandidateState.seenQuestionIds || []), ...details.seenQuestions.map(q => q.questionId)]))
       : globalCandidateState.seenQuestionIds;
 
+    const updatedHistory = {
+      ...(globalCandidateState.careerHistory || {}),
+      [currentSlug]: {
+        skills: updatedSkills,
+        assessmentScore: score,
+        readinessScore: newReadiness,
+        stage: 'SKILL_ANALYZED' as JourneyStage,
+        lastUpdated: new Date().toISOString(),
+      },
+    };
+
     // Update in-memory state immediately for instant feedback
     updateState({
       assessmentScore: score,
@@ -665,6 +787,7 @@ export function useCandidateState() {
       readinessScore: newReadiness,
       skills: updatedSkills,
       seenQuestionIds: newSeenIds,
+      careerHistory: updatedHistory,
     });
 
     // Background Supabase persistence

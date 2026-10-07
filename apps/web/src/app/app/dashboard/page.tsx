@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { useCandidateState, getNextBestAction } from '@/lib/data/state-store';
 import { getCareerBySlug } from '@/lib/data/careers-data';
-import { OPPORTUNITIES_CATALOG } from '@/lib/data/opportunities-data';
+import { OPPORTUNITIES_CATALOG, getOpportunitiesByRole, calculateExplainableMatch } from '@/lib/data/opportunities-data';
 import { ROUTES } from '@/lib/routes';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -47,16 +47,14 @@ export default function DashboardPage() {
   const uniqueSkills = Array.from(skillsMap.values());
   const criticalSkills = uniqueSkills.filter(s => s.priority === 'CRITICAL' || s.priority === 'HIGH');
 
-  // Matched Opportunities: Filter out jobs already applied to (permanently remove duplicate job entries)
+  // Matched Opportunities: Filter out jobs already applied to and prioritize active career role
   const appliedOpportunityIds = new Set(state.applications.map(a => a.opportunityId));
-  const matchedJobs = OPPORTUNITIES_CATALOG
-    .filter(job => !appliedOpportunityIds.has(job.id))
-    .sort((a, b) => {
-      if (a.roleSlug === state.targetCareerSlug && b.roleSlug !== state.targetCareerSlug) return -1;
-      if (b.roleSlug === state.targetCareerSlug && a.roleSlug !== state.targetCareerSlug) return 1;
-      return 0;
-    })
-    .slice(0, 3);
+  const roleOpportunities = getOpportunitiesByRole(state.targetCareerSlug, 'FULL_TIME').allRanked
+    .filter((job) => !appliedOpportunityIds.has(job.id));
+  const matchedJobs = (roleOpportunities.length > 0
+    ? roleOpportunities
+    : OPPORTUNITIES_CATALOG.filter((job) => !appliedOpportunityIds.has(job.id))
+  ).slice(0, 3);
 
   return (
     <div className="space-y-8" suppressHydrationWarning>
@@ -344,14 +342,10 @@ export default function DashboardPage() {
 
             <div className="space-y-3">
               {matchedJobs.map((job) => {
-                const activeSkills = new Set(
-                  state.skills.filter((s) => s.currentLevel !== 'L0').map((s) => s.name.toLowerCase().trim())
-                );
-                const matchedCount = job.requiredSkills.filter((s) =>
-                  activeSkills.has(s.toLowerCase().trim())
-                ).length;
+                const matchResult = calculateExplainableMatch(job, state.skills, state.targetCareerSlug);
+                const isExact = job.roleSlug === state.targetCareerSlug;
                 const matchPct = state.assessmentScore !== undefined
-                  ? Math.round((matchedCount / Math.max(job.requiredSkills.length, 1)) * 100)
+                  ? matchResult.overallScore
                   : null;
 
                 return (
@@ -361,9 +355,16 @@ export default function DashboardPage() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-brand-ink/60">
-                          {job.companyName}
-                        </span>
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-brand-ink/60">
+                            {job.companyName}
+                          </span>
+                          {isExact && (
+                            <Badge variant="yellow" className="text-[8px] py-0 px-1 font-bold">
+                              EXACT ROLE
+                            </Badge>
+                          )}
+                        </div>
                         <h4 className="font-bold text-sm text-brand-ink line-clamp-1">
                           {job.title}
                         </h4>
@@ -371,7 +372,7 @@ export default function DashboardPage() {
                           {job.location} · {job.employmentType}
                         </div>
                       </div>
-                      <Badge variant="yellow" className="shrink-0">
+                      <Badge variant="yellow" className="shrink-0 font-bold">
                         {matchPct !== null ? `${matchPct}% Match` : 'Baseline Needed'}
                       </Badge>
                     </div>

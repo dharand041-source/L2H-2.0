@@ -26,6 +26,24 @@ export default function ResumeHubPage() {
   const { state } = useCandidateState();
   const currentRole = getCareerBySlug(state.targetCareerSlug);
 
+  const roleKeywords = currentRole?.resumeKeywords && currentRole.resumeKeywords.length > 0
+    ? currentRole.resumeKeywords
+    : ['System Architecture', 'Production Reliability', 'Security & Scale', 'Automated Testing'];
+
+  const activeSkills = state.skills.filter((s) => s.currentLevel !== 'L0');
+  const matchedKeywords = roleKeywords.filter((kw) =>
+    activeSkills.some(
+      (s) =>
+        s.name.toLowerCase().includes(kw.toLowerCase()) ||
+        kw.toLowerCase().includes(s.name.toLowerCase())
+    )
+  );
+  const missingKeywords = roleKeywords.filter((kw) => !matchedKeywords.includes(kw));
+  const compatibilityScore = state.assessmentScore !== undefined && state.assessmentScore > 0
+    ? Math.round((matchedKeywords.length / Math.max(roleKeywords.length, 1)) * 100)
+    : 0;
+  const isReady = compatibilityScore >= 60;
+
   const resumeNavTabs = [
     { label: 'Resume Builder', href: ROUTES.app.resume.builder },
     { label: 'Role Versions', href: ROUTES.app.resume.versions },
@@ -92,13 +110,13 @@ export default function ResumeHubPage() {
               <span className="editorial-badge bg-brand-orange text-white text-[10px]">
                 Resume Approval Gate
               </span>
-              <Badge variant={state.resume.status === 'READY' ? 'yellow' : 'rose'}>
-                {state.resume.status.replace(/_/g, ' ')}
+              <Badge variant={isReady ? 'yellow' : 'rose'}>
+                {isReady ? 'READY' : 'NOT READY'}
               </Badge>
             </div>
 
             <h2 className="font-display text-3xl font-bold uppercase text-brand-ink">
-              {state.resume.status === 'READY' ? (
+              {isReady ? (
                 <>Readiness Status: <span className="text-brand-orange">READY</span></>
               ) : (
                 <span className="text-brand-rose">RESUME NOT READY</span>
@@ -106,9 +124,9 @@ export default function ResumeHubPage() {
             </h2>
 
             <p className="text-sm text-brand-ink/85 font-medium leading-relaxed max-w-2xl">
-              {state.resume.status === 'READY'
-                ? 'Your primary resume has satisfied core keyword coverage, auditable project deliverables, and ATS compatibility benchmarks. Direct job applications are now unlocked.'
-                : 'Complete your profile and add your verified evidence to satisfy the ATS compatibility gate.'}
+              {isReady
+                ? `Your ${currentRole?.title || 'Target Role'} resume has satisfied core keyword coverage, auditable project deliverables, and ATS compatibility benchmarks. Direct job applications are unlocked.`
+                : `Complete your ${currentRole?.title || 'Target Role'} baseline assessment and verified milestones to satisfy the ATS compatibility gate.`}
             </p>
 
             <div className="pt-2 flex flex-wrap gap-3">
@@ -126,9 +144,9 @@ export default function ResumeHubPage() {
           </div>
 
           <div className="lg:col-span-4 flex flex-col items-center justify-center p-6 bg-brand-cream border border-brand-ink/30">
-            <ProgressRing progress={state.resume.compatibilityScore} size={110} strokeWidth={9} color="#FFA2B6" />
+            <ProgressRing progress={compatibilityScore} size={110} strokeWidth={9} color="#FFA2B6" />
             <span className="font-display text-3xl font-bold text-brand-ink mt-3">
-              {state.resume.compatibilityScore}%
+              {compatibilityScore}%
             </span>
             <span className="text-[10px] font-bold uppercase tracking-wider text-brand-ink/70 text-center mt-1">
               Learn-2-Hire Compatibility Estimate
@@ -146,11 +164,11 @@ export default function ResumeHubPage() {
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-brand-orange" />
             <h3 className="font-display text-xl font-bold uppercase text-brand-ink">
-              Matched Keywords in Active Resume ({state.resume.matchedKeywords.length})
+              Matched Keywords in Active Resume ({matchedKeywords.length})
             </h3>
           </div>
           <div className="flex flex-wrap gap-1.5 pt-2">
-            {state.resume.matchedKeywords.map((kw) => (
+            {matchedKeywords.map((kw) => (
               <span key={kw} className="text-xs font-bold px-2.5 py-1 bg-brand-cream border border-brand-ink/30 text-brand-ink">
                 {kw}
               </span>
@@ -162,11 +180,11 @@ export default function ResumeHubPage() {
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-brand-rose" />
             <h3 className="font-display text-xl font-bold uppercase text-brand-ink">
-              Missing High-Frequency Keywords ({state.resume.missingKeywords.length})
+              Missing High-Frequency Keywords ({missingKeywords.length})
             </h3>
           </div>
           <div className="flex flex-wrap gap-1.5 pt-2">
-            {state.resume.missingKeywords.map((kw) => (
+            {missingKeywords.map((kw) => (
               <span key={kw} className="text-xs font-bold px-2.5 py-1 bg-brand-cream border border-brand-rose text-brand-rose">
                 + {kw}
               </span>

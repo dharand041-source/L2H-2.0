@@ -9,28 +9,184 @@ import { getCareerBySlug } from '../data/careers-data';
 /**
  * Generates an initial interview question set for a target career role.
  */
-export function getInitialInterviewQuestions(roleSlug: string): InterviewTurn[] {
+export function getInitialInterviewQuestions(
+  roleSlug: string,
+  difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT' = 'INTERMEDIATE'
+): InterviewTurn[] {
   const role = getCareerBySlug(roleSlug);
   const roleTitle = role ? role.title : 'Full-Stack Developer';
+  const topics = role?.interviewTopics && role.interviewTopics.length > 0
+    ? role.interviewTopics
+    : ['System Architecture', 'Production Reliability', 'Security & Scale'];
+
+  const t1 = topics[0] || 'Core Architecture';
+  const t2 = topics[1] || topics[0] || 'System Design';
+
+  if (role?.track === 'NON_TECHNICAL' || roleSlug.includes('product') || roleSlug.includes('marketing') || roleSlug.includes('talent')) {
+    if (difficulty === 'BEGINNER') {
+      return [
+        {
+          id: `int-tech-1-${roleSlug}-beg`,
+          stage: 'TECHNICAL',
+          questionText: `As an aspiring ${roleTitle}, what are the fundamental concepts behind ${t1}, and how do you apply them in basic day-to-day tasks?`,
+          expectedConcepts: ['Foundational concepts', 'KPI basics', 'Team communication', 'Iterative prioritization'],
+        },
+        {
+          id: `int-sys-2-${roleSlug}-beg`,
+          stage: 'SYSTEM_DESIGN',
+          questionText: `Walk through how you organize and execute a project related to ${t2} when given clear requirements and team guidance.`,
+          expectedConcepts: ['Task breakdown', 'Time management', 'Clear milestones', 'Quality checks'],
+        },
+        {
+          id: `int-beh-3-${roleSlug}-beg`,
+          stage: 'BEHAVIORAL',
+          questionText: `Tell me about a time you received constructive feedback on a project. How did you adapt your approach and implement the suggestions?`,
+          expectedConcepts: ['STAR method: Situation & Task', 'Receptiveness to feedback', 'Action taken', 'Growth outcome'],
+        },
+      ];
+    }
+
+    return [
+      {
+        id: `int-tech-1-${roleSlug}`,
+        stage: 'TECHNICAL',
+        questionText: `As a ${roleTitle}, how do you approach ${t1}? Walk through the exact methodologies, frameworks, and metrics you rely on when evaluating trade-offs.`,
+        expectedConcepts: ['Evidence-based decision making', 'KPI / Metric definition', 'Stakeholder alignment', 'Iterative prioritization'],
+      },
+      {
+        id: `int-sys-2-${roleSlug}`,
+        stage: 'SYSTEM_DESIGN',
+        questionText: `Describe how you would design a scalable strategy around ${t2} when facing ambiguous requirements, tight cross-functional constraints, and competing deadlines.`,
+        expectedConcepts: ['Structured discovery framework', 'Risk mitigation', 'Clear milestone tracking', 'Outcome validation'],
+      },
+      {
+        id: `int-beh-3-${roleSlug}`,
+        stage: 'BEHAVIORAL',
+        questionText: `Tell me about a time you had to persuade senior stakeholders or cross-functional team members to adopt a difficult strategy. How did you structure your argument and navigate pushback?`,
+        expectedConcepts: ['STAR method: Situation & Task', 'Data and qualitative evidence', 'Consensus building', 'Measurable business outcome'],
+      },
+    ];
+  }
+
+  // Technical Track
+  if (difficulty === 'BEGINNER') {
+    return [
+      {
+        id: `int-tech-1-${roleSlug}-beg`,
+        stage: 'TECHNICAL',
+        questionText: `From a foundational perspective in ${roleTitle}, how do you explain the core concepts of ${t1}? What basic patterns or principles should every junior engineer master?`,
+        expectedConcepts: [
+          t1,
+          'Core syntax and mechanics',
+          'Basic error handling',
+          'Code readability and standards',
+        ],
+      },
+      {
+        id: `int-sys-2-${roleSlug}-beg`,
+        stage: 'SYSTEM_DESIGN',
+        questionText: `How would you structure a clean, maintainable module focusing on ${t2} for a single-service application with straightforward requirements?`,
+        expectedConcepts: [
+          t2,
+          'Modular code structure',
+          'Data validation',
+          'Separation of concerns',
+        ],
+      },
+      {
+        id: `int-beh-3-${roleSlug}-beg`,
+        stage: 'BEHAVIORAL',
+        questionText: `Tell me about a time you encountered a technical concept you didn't understand while learning ${roleTitle}. How did you approach researching and mastering it?`,
+        expectedConcepts: [
+          'STAR method: Situation & Task',
+          'Documentation & research',
+          'Hands-on experimentation',
+          'Learned takeaway',
+        ],
+      },
+    ];
+  }
+
+  if (difficulty === 'EXPERT') {
+    return [
+      {
+        id: `int-tech-1-${roleSlug}-exp`,
+        stage: 'TECHNICAL',
+        questionText: `As a principal authority in ${roleTitle}, how do you design governance, security boundaries, and protocol-level abstractions around ${t1}? How do you balance extreme scale with developer ergonomics?`,
+        expectedConcepts: [
+          t1,
+          'Event loop non-blocking I/O',
+          'Worker threads or background queue',
+          'Connection pooling',
+          'Zero Trust & security boundaries',
+          'Observability and SLIs/SLOs',
+        ],
+      },
+      {
+        id: `int-sys-2-${roleSlug}-exp`,
+        stage: 'SYSTEM_DESIGN',
+        questionText: `Architect a global, multi-region distributed ecosystem addressing ${t2} with strict latency SLOs, cross-region replication consistency, and automated disaster recovery.`,
+        expectedConcepts: [
+          t2,
+          'Decoupled modular architecture',
+          'Fault isolation & recovery',
+          'Cache-aside with Redis',
+          'Distributed consensus & replication',
+          'Automated failover',
+        ],
+      },
+      {
+        id: `int-beh-3-${roleSlug}-exp`,
+        stage: 'BEHAVIORAL',
+        questionText: `Tell me about a time you drove a company-wide architectural overhaul or cultural engineering shift. How did you align conflicting VP/C-level stakeholders and navigate systemic resistance?`,
+        expectedConcepts: [
+          'STAR method: Situation & Task',
+          'Executive stakeholder alignment',
+          'Risk mitigation and phased rollout',
+          'Measurable organizational outcome',
+        ],
+      },
+    ];
+  }
 
   return [
     {
       id: `int-tech-1-${roleSlug}`,
       stage: 'TECHNICAL',
-      questionText: `In an enterprise ${roleTitle} architecture, how do you handle asynchronous operations and ensure long-running I/O tasks do not block incoming user requests?`,
-      expectedConcepts: ['Event loop non-blocking I/O', 'Worker threads or background queue', 'Connection pooling', 'Error boundary handling'],
+      questionText: `In an enterprise ${roleTitle} environment, how do you architect solutions around ${t1}? What edge cases, failure modes, and performance trade-offs do you account for?`,
+      expectedConcepts: [
+        t1,
+        'Event loop non-blocking I/O',
+        'Worker threads or background queue',
+        'Connection pooling',
+        'Error handling & resilience',
+        'Performance / latency trade-offs',
+      ],
     },
     {
       id: `int-sys-2-${roleSlug}`,
       stage: 'SYSTEM_DESIGN',
-      questionText: `Imagine your service experiences an unexpected 20x traffic surge during a promotional event. How would you architect the database and caching layer to prevent data corruption and overselling?`,
-      expectedConcepts: ['Cache-aside with Redis', 'Atomic check-and-set', 'Database pessimistic/optimistic locking', 'Connection pooling'],
+      questionText: `Imagine you need to design an enterprise system focusing on ${t2} that must handle rapid scale and high availability. How do you partition responsibilities and ensure resilience against single points of failure?`,
+      expectedConcepts: [
+        t2,
+        'Decoupled modular architecture',
+        'Fault isolation & recovery',
+        'Cache-aside with Redis',
+        'Database pessimistic/optimistic locking',
+        'Security & access control',
+      ],
     },
     {
       id: `int-beh-3-${roleSlug}`,
       stage: 'BEHAVIORAL',
-      questionText: `Tell me about a time you identified a critical production performance bug or architectural flaw. What telemetry did you use to isolate the root cause, and how did you prevent recurrence?`,
-      expectedConcepts: ['STAR method: Situation & Task', 'Action with metrics/profiling', 'Result & Post-Mortem', 'Automated regression testing'],
+      questionText: `Tell me about a time you diagnosed a severe production failure or architectural blocker in ${roleTitle} work. What telemetry or diagnostic tools did you use to find the root cause, and how did you resolve it?`,
+      expectedConcepts: [
+        'STAR method: Situation & Task',
+        'Action with root cause analysis',
+        'Metrics and profiling telemetry',
+        'Result with post-mortem',
+        'Automated regression safeguards',
+      ],
     },
   ];
 }
@@ -107,7 +263,7 @@ export function evaluateInterviewResponse(
 
   // Compute rubric components
   let technicalCorrectness = Math.round(55 + conceptCoverage * 40);
-  let communication = wordCount > 40 ? 88 : wordCount > 20 ? 76 : 60;
+  let communication = wordCount >= 35 ? 88 : wordCount >= 18 ? 76 : 60;
   let problemSolving = Math.round(60 + conceptCoverage * 35);
   let structuralClarity = answerLower.includes('because') || answerLower.includes('first') || answerLower.includes('trade-off') || answerLower.includes('however') ? 86 : 74;
 

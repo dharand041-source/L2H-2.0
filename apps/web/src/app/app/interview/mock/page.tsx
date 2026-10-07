@@ -23,7 +23,7 @@ import {
   generateContextualFollowUp,
   InterviewTurn
 } from '@/lib/assessment';
-import { useCandidateState } from '@/lib/data/state-store';
+import { useCandidateState, getRoleUuid } from '@/lib/data/state-store';
 import { getCareerBySlug } from '@/lib/data/careers-data';
 import { ROUTES } from '@/lib/routes';
 import { supabase } from '@/lib/supabase';
@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProgressRing } from '@/components/ui/progress-ring';
+import { InterviewVoiceInput } from '@/components/interview/interview-voice-input';
 
 export default function MockInterviewSimulationPage() {
   const router = useRouter();
@@ -39,48 +40,70 @@ export default function MockInterviewSimulationPage() {
 
   const [difficulty, setDifficulty] = useState<'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT'>('INTERMEDIATE');
   const [questions, setQuestions] = useState<InterviewTurn[]>(() =>
-    getInitialInterviewQuestions(state.targetCareerSlug || 'full-stack-developer')
+    getInitialInterviewQuestions(state.targetCareerSlug || 'full-stack-developer', 'INTERMEDIATE')
   );
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [candidateResponse, setCandidateResponse] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
+  const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [scorecard, setScorecard] = useState<any | null>(null);
   const [hasInjectedFollowUp, setHasInjectedFollowUp] = useState(false);
 
   // Sync questions when role changes
   useEffect(() => {
-    setQuestions(getInitialInterviewQuestions(state.targetCareerSlug || 'full-stack-developer'));
+    setQuestions(getInitialInterviewQuestions(state.targetCareerSlug || 'full-stack-developer', difficulty));
     setCurrentQIndex(0);
     setCandidateResponse('');
+    setValidationError(null);
     setScorecard(null);
     setHasInjectedFollowUp(false);
-  }, [state.targetCareerSlug]);
+  }, [state.targetCareerSlug, difficulty]);
+
+  const handleDifficultyChange = (lvl: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT') => {
+    setDifficulty(lvl);
+    setQuestions(getInitialInterviewQuestions(state.targetCareerSlug || 'full-stack-developer', lvl));
+    setCurrentQIndex(0);
+    setCandidateResponse('');
+    setValidationError(null);
+    setScorecard(null);
+    setHasInjectedFollowUp(false);
+  };
 
   const currentQuestion = questions[currentQIndex] || questions[0];
 
   const handleEvaluateAnswer = async () => {
-    if (!currentQuestion || !candidateResponse.trim()) return;
+    const trimmed = candidateResponse.trim();
+    if (trimmed.length < 10) {
+      setValidationError('Please provide a structured answer with at least 10 characters before submitting.');
+      return;
+    }
+    if (isVoiceActive) {
+      setValidationError('Please stop voice input before submitting your response.');
+      return;
+    }
+    setValidationError(null);
     setIsEvaluating(true);
 
-    const evalResult = evaluateInterviewResponse(currentQuestion, candidateResponse);
+    const evalResult = evaluateInterviewResponse(currentQuestion, trimmed);
 
     // Contextual Follow-Up Engine (injects if on a primary technical/system question and hasn't yet)
     let followUpQ: InterviewTurn | null = null;
     if (
       !hasInjectedFollowUp &&
       (currentQuestion.stage === 'TECHNICAL' || currentQuestion.stage === 'SYSTEM_DESIGN') &&
-      candidateResponse.trim().length > 25
+      trimmed.length > 25
     ) {
-      followUpQ = generateContextualFollowUp(currentQuestion, candidateResponse);
+      followUpQ = generateContextualFollowUp(currentQuestion, trimmed);
     }
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        const targetRoleUuid = getRoleUuid(state.targetCareerSlug || 'full-stack-developer');
         const { data: sessionRows } = await supabase.from('interview_sessions').insert({
           user_id: user.id,
-          target_role_id: '50000000-0000-0000-0000-000000000001',
+          target_role_id: targetRoleUuid,
           session_type: currentQuestion.stage,
           level: difficulty === 'BEGINNER' ? 'L1' : difficulty === 'ADVANCED' ? 'L4' : difficulty === 'EXPERT' ? 'L5' : 'L3',
           status: 'COMPLETED',
@@ -175,7 +198,7 @@ export default function MockInterviewSimulationPage() {
           {(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'] as const).map((lvl) => (
             <button
               key={lvl}
-              onClick={() => setDifficulty(lvl)}
+              onClick={() => handleDifficultyChange(lvl)}
               className={`px-3 py-1.5 text-xs font-bold uppercase border transition-all ${
                 difficulty === lvl
                   ? 'bg-brand-ink text-white border-brand-ink'
@@ -200,12 +223,12 @@ export default function MockInterviewSimulationPage() {
           </div>
           <button
             onClick={() => {
-              if ('speechSynthesis' in window) {
+              if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
                 const utterance = new SpeechSynthesisUtterance(currentQuestion.questionText);
                 window.speechSynthesis.speak(utterance);
               }
             }}
-            className="p-1.5 border border-brand-ink bg-brand-cream text-brand-ink hover:bg-brand-paper flex items-center gap-1 text-xs font-bold uppercase"
+            className="p-1.5 border border-brand-ink bg-brand-cream text-brand-ink hover:bg-brand-paper flex items-center gap-1 text-xs font-bold uppercase shadow-editorial-sm"
           >
             <Volume2 className="w-4 h-4 text-brand-orange" /> Listen Prompt
           </button>
@@ -229,44 +252,50 @@ export default function MockInterviewSimulationPage() {
           </div>
         </div>
 
-        {/* Response Box */}
+        {/* Response Box with Real Voice Input Component */}
         <div className="space-y-3 pt-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-extrabold uppercase tracking-widest text-brand-ink/70">
-              Your Articulated Response:
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsRecording(!isRecording)}
-              className={`px-3 py-1 text-xs font-bold uppercase border flex items-center gap-1.5 ${
-                isRecording
-                  ? 'bg-brand-rose text-white border-brand-ink animate-pulse'
-                  : 'bg-brand-cream text-brand-ink border-brand-ink hover:bg-brand-paper'
-              }`}
-            >
-              {isRecording ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5 text-brand-orange" />}
-              {isRecording ? 'Listening...' : 'Simulate Audio Input'}
-            </button>
-          </div>
+          <InterviewVoiceInput
+            currentText={candidateResponse}
+            onTranscriptChange={(updatedText) => {
+              setCandidateResponse(updatedText);
+              if (validationError && updatedText.trim().length >= 10) {
+                setValidationError(null);
+              }
+            }}
+            onVoiceStateChange={(listening) => setIsVoiceActive(listening)}
+            disabled={isEvaluating}
+          />
 
           <textarea
             rows={6}
             value={candidateResponse}
-            onChange={(e) => setCandidateResponse(e.target.value)}
-            placeholder="Type your structured explanation here (or use simulated voice input)... For example: Node.js utilizes an event-driven architecture powered by libuv's event loop with non-blocking I/O polling..."
+            onChange={(e) => {
+              setCandidateResponse(e.target.value);
+              if (validationError && e.target.value.trim().length >= 10) {
+                setValidationError(null);
+              }
+            }}
+            placeholder="Type your structured explanation here or use voice input to articulate your response..."
             className="w-full p-4 bg-brand-cream border border-brand-ink text-xs font-medium text-brand-ink leading-relaxed focus:outline-none"
           />
+
+          {validationError && (
+            <p className="text-xs font-bold text-brand-rose animate-in fade-in">
+              {validationError}
+            </p>
+          )}
         </div>
 
-        <div className="pt-4 border-t border-brand-ink/20 flex items-center justify-between">
+        <div className="pt-4 border-t border-brand-ink/20 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <span className="text-xs font-semibold text-brand-ink/60">
-            Multi-factor scoring evaluates accuracy, clarity, and trade-offs.
+            {isVoiceActive ? 'Stop voice input before submitting your response.' : 'Multi-factor scoring evaluates accuracy, clarity, and trade-offs.'}
           </span>
           <Button
             variant="primary"
             size="md"
             onClick={handleEvaluateAnswer}
-            disabled={isEvaluating || candidateResponse.trim().length === 0}
+            disabled={isEvaluating || isVoiceActive || candidateResponse.trim().length < 10}
+            className="w-full sm:w-auto justify-center"
           >
             {isEvaluating ? 'Analyzing Scorecard...' : 'Submit & Evaluate Answer →'}
           </Button>

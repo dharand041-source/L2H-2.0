@@ -14,41 +14,198 @@ export default function ProjectsHubPage() {
   const { state } = useCandidateState();
   const currentRole = getCareerBySlug(state.targetCareerSlug);
 
-  const projects = [
-    {
-      id: 'proj-001',
-      title: 'Distributed Event Booking Service',
-      category: 'Backend & Microservices',
-      skills: ['Node.js', 'PostgreSQL', 'Redis', 'Docker'],
-      complexity: 'Advanced (L3)',
-      milestones: 4,
-      currentMilestone: 2,
-      status: 'IN_PROGRESS',
-      description: 'Architect a high-concurrency ticket reservation engine handling seat locking, ACID payments, and webhook reconciliation.',
-    },
-    {
-      id: 'proj-002',
-      title: 'Full-Stack Job Board & Application Tracker',
-      category: 'Full-Stack System',
-      skills: ['React', 'Next.js', 'Node.js', 'PostgreSQL'],
-      complexity: 'Intermediate (L3)',
-      milestones: 4,
-      currentMilestone: 0,
-      status: 'AVAILABLE',
-      description: 'Build an authenticated candidate job portal with dynamic resume parsing, ATS keyword scoring, and Kanban tracking.',
-    },
-    {
-      id: 'proj-003',
-      title: 'Real-Time Collaborative Analytics Dashboard',
-      category: 'Data & Frontend Architecture',
-      skills: ['React', 'TypeScript', 'WebSockets', 'Tailwind CSS'],
-      complexity: 'Advanced (L4)',
-      milestones: 5,
-      currentMilestone: 0,
-      status: 'AVAILABLE',
-      description: 'Develop a streaming financial telemetries console with bi-directional WebSockets, data visualizers, and canvas rendering.',
+  const getProjectsForRole = (slug: string) => {
+    if (slug === 'frontend-developer') {
+      return [
+        {
+          id: 'proj-fe-001',
+          title: 'Enterprise Design System & Accessible Component Library',
+          category: 'Frontend Architecture & Accessibility',
+          skills: ['React', 'TypeScript', 'Storybook', 'WCAG 2.1 AA'],
+          complexity: 'Advanced (L4)',
+          milestones: 4,
+          currentMilestone: 2,
+          status: 'IN_PROGRESS',
+          description: 'Build a production-grade tokenized design system with keyboard navigation, ARIA live regions, and automated visual regression testing.',
+        },
+        {
+          id: 'proj-fe-002',
+          title: 'High-Performance E-Commerce Web App with Edge SSR',
+          category: 'Web Performance & Core Web Vitals',
+          skills: ['Next.js', 'React', 'Tailwind CSS', 'TypeScript'],
+          complexity: 'Advanced (L4)',
+          milestones: 4,
+          currentMilestone: 0,
+          status: 'AVAILABLE',
+          description: 'Architect a sub-second e-commerce storefront with server-side rendering, streaming HTML, and Core Web Vitals optimization.',
+        },
+        {
+          id: 'proj-fe-003',
+          title: 'Interactive Real-Time Data Visualization Canvas',
+          category: 'Data & Frontend Architecture',
+          skills: ['React', 'TypeScript', 'Canvas / WebGL', 'WebSockets'],
+          complexity: 'Advanced (L4)',
+          milestones: 5,
+          currentMilestone: 0,
+          status: 'AVAILABLE',
+          description: 'Develop a streaming telemetry console with high-frequency WebSockets, canvas render pipelines, and responsive charting.',
+        },
+      ];
     }
-  ];
+
+    if (slug === 'cybersecurity-architect') {
+      return [
+        {
+          id: 'proj-sec-001',
+          title: 'Enterprise Zero Trust IAM & Policy Enforcement Proxy',
+          category: 'Security Architecture & Identity',
+          skills: ['Zero Trust', 'OAuth 2.0 / OIDC', 'mTLS', 'JWT'],
+          complexity: 'Expert (L5)',
+          milestones: 4,
+          currentMilestone: 2,
+          status: 'IN_PROGRESS',
+          description: 'Architect a defense-in-depth access proxy enforcing least-privilege token validation, context-aware authorization, and mTLS between microservices.',
+        },
+        {
+          id: 'proj-sec-002',
+          title: 'Automated Threat Modeling Engine with STRIDE & PASTA',
+          category: 'Application Security & Threat Modeling',
+          skills: ['Threat Modeling', 'STRIDE', 'CVE Database', 'Python'],
+          complexity: 'Advanced (L4)',
+          milestones: 4,
+          currentMilestone: 0,
+          status: 'AVAILABLE',
+          description: 'Design an automated vulnerability mapping pipeline that ingests architecture diagrams and generates risk registers and mitigation strategies.',
+        },
+        {
+          id: 'proj-sec-003',
+          title: 'Cloud Security Posture Management & Audit Pipeline',
+          category: 'Cloud Security & Compliance',
+          skills: ['Cloud Security', 'CIS Benchmarks', 'IAM Governance', 'Docker'],
+          complexity: 'Advanced (L4)',
+          milestones: 5,
+          currentMilestone: 0,
+          status: 'AVAILABLE',
+          description: 'Build an automated compliance scanning engine auditing AWS/Azure configurations against CIS benchmarks and generating remediations.',
+        },
+      ];
+    }
+
+    if (slug === 'data-scientist') {
+      return [
+        {
+          id: 'proj-ds-001',
+          title: 'Predictive Customer Churn Pipeline & Feature Store',
+          category: 'Machine Learning & Production Pipelines',
+          skills: ['Python', 'Scikit-learn', 'Pandas', 'Feature Engineering'],
+          complexity: 'Advanced (L4)',
+          milestones: 4,
+          currentMilestone: 2,
+          status: 'IN_PROGRESS',
+          description: 'Build an end-to-end ML pipeline with data cleaning, class imbalance correction, hyperparameter tuning, and containerized model inference.',
+        },
+        {
+          id: 'proj-ds-002',
+          title: 'Exploratory Business Analytics & Cohort Retention Suite',
+          category: 'EDA & Business Intelligence',
+          skills: ['Python', 'SQL', 'Data Cleaning', 'Data Storytelling'],
+          complexity: 'Intermediate (L3)',
+          milestones: 4,
+          currentMilestone: 0,
+          status: 'AVAILABLE',
+          description: 'Conduct comprehensive exploratory data analysis on multi-gigabyte transaction datasets to uncover retention bottlenecks and behavioral cohorts.',
+        },
+        {
+          id: 'proj-ds-003',
+          title: 'A/B Testing Power Analysis & Experimentation Platform',
+          category: 'Experimentation & Hypothesis Testing',
+          skills: ['Statistics', 'Probability', 'Hypothesis Testing', 'Python'],
+          complexity: 'Advanced (L4)',
+          milestones: 4,
+          currentMilestone: 0,
+          status: 'AVAILABLE',
+          description: 'Architect a statistical experimentation engine calculating sample size power requirements, p-values, and Bayesian conversion probabilities.',
+        },
+      ];
+    }
+
+    if (slug === 'ui-ux-designer') {
+      return [
+        {
+          id: 'proj-ux-001',
+          title: 'Multi-Brand Design System & Component Tokens',
+          category: 'Design Systems & Accessibility',
+          skills: ['Design Systems', 'Figma Tokens', 'Typography', 'WCAG 2.1'],
+          complexity: 'Advanced (L4)',
+          milestones: 4,
+          currentMilestone: 2,
+          status: 'IN_PROGRESS',
+          description: 'Architect a cross-platform design token architecture and Figma component library with dark mode, responsive spacing, and accessibility annotations.',
+        },
+        {
+          id: 'proj-ux-002',
+          title: 'Telehealth Patient Portal UX Research & Usability Study',
+          category: 'UX Research & Usability Testing',
+          skills: ['UX Research', 'User Flows', 'Wireframing', 'Usability Testing'],
+          complexity: 'Intermediate (L3)',
+          milestones: 4,
+          currentMilestone: 0,
+          status: 'AVAILABLE',
+          description: 'Execute end-to-end user research interviews, synthesize affinity maps, design low-fidelity wireframes, and run moderated usability tests.',
+        },
+        {
+          id: 'proj-ux-003',
+          title: 'Enterprise SaaS Workflow Redesign & Information Architecture',
+          category: 'Interaction Design & Architecture',
+          skills: ['Information Architecture', 'Interaction Design', 'Prototyping', 'Design Handoff'],
+          complexity: 'Advanced (L4)',
+          milestones: 5,
+          currentMilestone: 0,
+          status: 'AVAILABLE',
+          description: 'Restructure complex enterprise data navigation into intuitive multi-step flows with interactive prototypes and developer handoff specs.',
+        },
+      ];
+    }
+
+    // Default / Full-Stack & General Technical roles
+    return [
+      {
+        id: 'proj-001',
+        title: 'Distributed Event Booking Service & Seat Allocation',
+        category: 'Backend & Microservices',
+        skills: ['Node.js', 'PostgreSQL', 'Redis', 'Docker'],
+        complexity: 'Advanced (L3)',
+        milestones: 4,
+        currentMilestone: 2,
+        status: 'IN_PROGRESS',
+        description: 'Architect a high-concurrency ticket reservation engine handling seat locking, ACID payments, and webhook reconciliation.',
+      },
+      {
+        id: 'proj-002',
+        title: 'Full-Stack Job Board & Application Pipeline Tracker',
+        category: 'Full-Stack System',
+        skills: ['React', 'Next.js', 'Node.js', 'PostgreSQL'],
+        complexity: 'Intermediate (L3)',
+        milestones: 4,
+        currentMilestone: 0,
+        status: 'AVAILABLE',
+        description: 'Build an authenticated candidate job portal with dynamic resume parsing, ATS keyword scoring, and Kanban tracking.',
+      },
+      {
+        id: 'proj-003',
+        title: 'Real-Time Collaborative Analytics Dashboard',
+        category: 'Data & Frontend Architecture',
+        skills: ['React', 'TypeScript', 'WebSockets', 'Tailwind CSS'],
+        complexity: 'Advanced (L4)',
+        milestones: 5,
+        currentMilestone: 0,
+        status: 'AVAILABLE',
+        description: 'Develop a streaming financial telemetries console with bi-directional WebSockets, data visualizers, and canvas rendering.',
+      },
+    ];
+  };
+
+  const projects = getProjectsForRole(state.targetCareerSlug || 'full-stack-developer');
 
   return (
     <div className="space-y-8">

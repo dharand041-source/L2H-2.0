@@ -58,17 +58,18 @@ export function generateAssessmentBlueprint(
 
   // Default: Universal Baseline Diagnostic (Breadth: Fundamentals -> Core -> Applied -> Reasoning)
   const skills = role?.requiredSkills || [];
-  const primarySkill = skills[0]?.name || 'JavaScript';
-  const secondarySkill = skills[1]?.name || 'React';
-  const dataOrBackendSkill = skills.find(s => s.name.includes('SQL') || s.name.includes('Node') || s.name.includes('Data') || s.name.includes('Figma'))?.name || 'SQL & Relational DBs';
+  const primarySkill = skills[0]?.name || 'Core Fundamentals';
+  const secondarySkill = skills[1]?.name || 'Applied Architecture';
+  const tertiarySkill = skills[2]?.name || skills[0]?.name || 'Problem Solving';
+  const quaternarySkill = skills[3]?.name || skills[1]?.name || 'Specialty Practice';
 
   const distribution: BlueprintSkillRequirement[] = [
-    { skillName: primarySkill, targetDifficulty: 'L1', count: 1, category: 'BREADTH' }, // Fundamentals
+    { skillName: primarySkill, targetDifficulty: 'L1', count: 1, category: 'BREADTH' },
     { skillName: primarySkill, targetDifficulty: 'L2', count: 1, category: 'CORE' },
     { skillName: secondarySkill, targetDifficulty: 'L2', count: 1, category: 'CORE' },
-    { skillName: primarySkill, targetDifficulty: 'L3', count: 1, category: 'APPLIED' }, // Applied / Debugging
-    { skillName: dataOrBackendSkill, targetDifficulty: 'L2', count: 1, category: 'APPLIED' },
-    { skillName: 'Quantitative Reasoning', targetDifficulty: 'L2', count: 1, category: 'REASONING' }, // Aptitude
+    { skillName: tertiarySkill, targetDifficulty: 'L3', count: 1, category: 'APPLIED' },
+    { skillName: quaternarySkill, targetDifficulty: 'L2', count: 1, category: 'APPLIED' },
+    { skillName: 'Quantitative Reasoning', targetDifficulty: 'L2', count: 1, category: 'REASONING' },
     { skillName: 'Logical Reasoning', targetDifficulty: 'L2', count: 1, category: 'REASONING' },
   ];
 

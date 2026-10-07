@@ -17,9 +17,14 @@ export function buildAssessmentSession(
   const sessionQuestions: AssessmentQuestion[] = [];
   const roleSlug = blueprint.careerRoleSlug;
 
-  // Candidate pool prioritizing current role and universal aptitude
+  // Candidate pool strictly restricted to current role or universal aptitude / reasoning
   const pool = UNIVERSAL_QUESTION_BANK.filter(
-    (q) => q.careerRoleSlug === roleSlug || q.careerRoleSlug === 'full-stack-developer' || q.questionType === 'APTITUDE' || q.questionType === 'LOGICAL_REASONING'
+    (q) =>
+      q.careerRoleSlug === roleSlug ||
+      q.careerRoleSlug === 'universal' ||
+      q.questionType === 'APTITUDE' ||
+      q.questionType === 'LOGICAL_REASONING' ||
+      q.questionType === 'VERBAL_REASONING'
   );
 
   for (const requirement of blueprint.distribution) {
@@ -27,11 +32,20 @@ export function buildAssessmentSession(
 
     // Filter candidate pool matching skill and target difficulty
     const skillPool = pool.filter((q) => {
-      if (requirement.skillName === 'Quantitative Reasoning') return q.questionType === 'APTITUDE';
-      if (requirement.skillName === 'Logical Reasoning') return q.questionType === 'LOGICAL_REASONING';
+      if (requirement.skillName === 'Quantitative Reasoning') {
+        return q.questionType === 'APTITUDE' || q.skillName === 'Quantitative Reasoning';
+      }
+      if (requirement.skillName === 'Logical Reasoning') {
+        return q.questionType === 'LOGICAL_REASONING' || q.skillName === 'Logical Reasoning';
+      }
+      if (requirement.skillName === 'Verbal Reasoning') {
+        return q.questionType === 'VERBAL_REASONING' || q.skillName === 'Verbal Reasoning';
+      }
       return (
-        q.skillName.toLowerCase() === requirement.skillName.toLowerCase() ||
-        q.competency.toLowerCase().includes(requirement.skillName.toLowerCase())
+        q.careerRoleSlug === roleSlug &&
+        (q.skillName.toLowerCase() === requirement.skillName.toLowerCase() ||
+          q.competency.toLowerCase().includes(requirement.skillName.toLowerCase()) ||
+          requirement.skillName.toLowerCase().includes(q.skillName.toLowerCase()))
       );
     });
 
@@ -45,7 +59,7 @@ export function buildAssessmentSession(
     sessionQuestions.push(...picked);
     needed -= picked.length;
 
-    // If more needed (due to anti-repetition depletion), relax difficulty constraint but keep skill
+    // If more needed (due to anti-repetition depletion), relax difficulty constraint but keep role pool
     if (needed > 0) {
       const fallbackPool = pool.filter(q => !sessionQuestions.some(sq => sq.id === q.id));
       const fallbackFilter = filterEligibleQuestions(fallbackPool, userHistory, sessionQuestions);
@@ -54,13 +68,23 @@ export function buildAssessmentSession(
     }
   }
 
-  // Ensure at least 5 balanced questions are returned
+  // Ensure at least 5 balanced questions are returned strictly from role pool
   if (sessionQuestions.length < 5) {
     const remaining = pool.filter(q => !sessionQuestions.some(sq => sq.id === q.id));
     sessionQuestions.push(...remaining.slice(0, 5 - sessionQuestions.length));
   }
 
-  return sessionQuestions;
+  // Hard firewall: Guarantee zero cross-role contamination
+  const validatedQuestions = sessionQuestions.filter(
+    (q) =>
+      q.careerRoleSlug === roleSlug ||
+      q.careerRoleSlug === 'universal' ||
+      q.questionType === 'APTITUDE' ||
+      q.questionType === 'LOGICAL_REASONING' ||
+      q.questionType === 'VERBAL_REASONING'
+  );
+
+  return validatedQuestions;
 }
 
 /**

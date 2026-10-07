@@ -1,4 +1,10 @@
-import { computeNormalizedHash } from './normalization';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Helper script to synthesize the full calibrated universal question bank
+const scriptPath = path.resolve(__dirname, '../apps/web/src/lib/assessment/universal-bank.ts');
+
+const content = `import { computeNormalizedHash } from './normalization';
 import { AssessmentQuestion } from './question-types';
 
 /**
@@ -30,19 +36,19 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'JS_EQUALITY_TYPE_COERCION',
     questionVariant: 'strict_vs_abstract_equality',
     variantGroupId: 'vg-js-eq-01',
-    prompt: 'In JavaScript, what is the exact difference between the loose equality operator (`==`) and the strict equality operator (`===` )?',
+    prompt: 'In JavaScript, what is the exact difference between the loose equality operator (\`==\`) and the strict equality operator (\`===\` )?',
     options: [
-      '`===` checks both value and type without performing implicit type coercion, whereas `==` coerces types before comparing',
-      '`==` checks both value and type, whereas `===` performs implicit string conversion',
-      '`===` is deprecated in modern ECMAScript standard',
+      '\`===\` checks both value and type without performing implicit type coercion, whereas \`==\` coerces types before comparing',
+      '\`==\` checks both value and type, whereas \`===\` performs implicit string conversion',
+      '\`===\` is deprecated in modern ECMAScript standard',
       'Both operators are identical in function and execution performance'
     ],
-    correctAnswer: '`===` checks both value and type without performing implicit type coercion, whereas `==` coerces types before comparing',
-    explanation: 'The strict equality operator (`===`) compares operands without type coercion. If operands have different types, it immediately evaluates to false. Loose equality (`==`) applies abstract equality coercion algorithms.',
+    correctAnswer: '\`===\` checks both value and type without performing implicit type coercion, whereas \`==\` coerces types before comparing',
+    explanation: 'The strict equality operator (\`===\`) compares operands without type coercion. If operands have different types, it immediately evaluates to false. Loose equality (\`==\`) applies abstract equality coercion algorithms.',
     distractorExplanations: {
-      '`==` checks both value and type': 'Inverts the behavior of strict and loose equality.',
-      '`===` is deprecated': 'Strict equality is the recommended standard across all modern lint rules.',
-      'Both operators are identical': 'They produce opposite results for expressions like `0 == false` (true) vs `0 === false` (false).'
+      '\`==\` checks both value and type': 'Inverts the behavior of strict and loose equality.',
+      '\`===\` is deprecated': 'Strict equality is the recommended standard across all modern lint rules.',
+      'Both operators are identical': 'They produce opposite results for expressions like \`0 == false\` (true) vs \`0 === false\` (false).'
     },
     conceptTested: 'ECMAScript Abstract vs Strict Equality Comparison',
     expectedTimeSeconds: 45,
@@ -64,19 +70,19 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'REACT_USEEFFECT_STALE_CLOSURE',
     questionVariant: 'missing_interval_dependency',
     variantGroupId: 'vg-react-closure-01',
-    prompt: 'A candidate writes an interval counter in React: `useEffect(() => { const timer = setInterval(() => { setCount(count + 1); }, 1000); return () => clearInterval(timer); }, []);`. Why does the counter stop incrementing past 1?',
+    prompt: 'A candidate writes an interval counter in React: \`useEffect(() => { const timer = setInterval(() => { setCount(count + 1); }, 1000); return () => clearInterval(timer); }, []);\`. Why does the counter stop incrementing past 1?',
     options: [
-      'The empty dependency array captures the initial `count` value (0) in a stale closure',
-      '`setInterval` is blocked by the React synthetic event system',
+      'The empty dependency array captures the initial \`count\` value (0) in a stale closure',
+      '\`setInterval\` is blocked by the React synthetic event system',
       'The cleanup function runs immediately on every render tick',
-      '`count + 1` is not valid JSX syntax'
+      '\`count + 1\` is not valid JSX syntax'
     ],
-    correctAnswer: 'The empty dependency array captures the initial `count` value (0) in a stale closure',
-    explanation: 'Because `count` is referenced inside the interval callback but not included in `useEffect` dependencies, the callback forms a stale closure over the initial state value 0. On every interval tick, it executes `setCount(0 + 1)`. The fix is either adding `count` or using the functional updater `setCount(prev => prev + 1)`.',
+    correctAnswer: 'The empty dependency array captures the initial \`count\` value (0) in a stale closure',
+    explanation: 'Because \`count\` is referenced inside the interval callback but not included in \`useEffect\` dependencies, the callback forms a stale closure over the initial state value 0. On every interval tick, it executes \`setCount(0 + 1)\`. The fix is either adding \`count\` or using the functional updater \`setCount(prev => prev + 1)\`.',
     distractorExplanations: {
-      '`setInterval` is blocked': 'Browser intervals run independently on the window object.',
+      '\`setInterval\` is blocked': 'Browser intervals run independently on the window object.',
       'The cleanup function runs immediately': 'Cleanup only executes on unmount or re-render when dependencies change.',
-      '`count + 1` is not valid JSX syntax': 'It is pure JavaScript expression logic, not JSX.'
+      '\`count + 1\` is not valid JSX syntax': 'It is pure JavaScript expression logic, not JSX.'
     },
     conceptTested: 'React Stale Closures in Asynchronous Hooks',
     expectedTimeSeconds: 60,
@@ -100,7 +106,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'NODE_EVENT_LOOP_EXECUTION_ORDER',
     questionVariant: 'microtask_vs_macrotask_priority',
     variantGroupId: 'vg-node-evl-01',
-    prompt: 'Consider the following Node.js script:\n```js\nconsole.log(1);\nsetTimeout(() => console.log(2), 0);\nPromise.resolve().then(() => console.log(3));\nprocess.nextTick(() => console.log(4));\nconsole.log(5);\n```\nWhat is the exact execution output in standard Node.js runtime?',
+    prompt: 'Consider the following Node.js script:\\n\`\`\`js\\nconsole.log(1);\\nsetTimeout(() => console.log(2), 0);\\nPromise.resolve().then(() => console.log(3));\\nprocess.nextTick(() => console.log(4));\\nconsole.log(5);\\n\`\`\`\\nWhat is the exact execution output in standard Node.js runtime?',
     options: [
       '1, 5, 4, 3, 2',
       '1, 5, 3, 4, 2',
@@ -108,9 +114,9 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
       '1, 4, 5, 3, 2'
     ],
     correctAnswer: '1, 5, 4, 3, 2',
-    explanation: 'Synchronous execution runs first: 1, then 5. The microtask queues drain before the event loop advances to timers. In Node.js, the `process.nextTick` queue has priority over the standard microtask Promise queue (prints 4, then 3). Finally, the timer macrotask executes (prints 2).',
+    explanation: 'Synchronous execution runs first: 1, then 5. The microtask queues drain before the event loop advances to timers. In Node.js, the \`process.nextTick\` queue has priority over the standard microtask Promise queue (prints 4, then 3). Finally, the timer macrotask executes (prints 2).',
     distractorExplanations: {
-      '1, 5, 3, 4, 2': 'Overlooks that `process.nextTick` executes before Promise microtasks in Node.js.',
+      '1, 5, 3, 4, 2': 'Overlooks that \`process.nextTick\` executes before Promise microtasks in Node.js.',
       '1, 2, 3, 4, 5': 'Ignores asynchronous queue deferral.',
       '1, 4, 5, 3, 2': 'Treats nextTick as synchronous before main call stack completes.'
     },
@@ -173,14 +179,14 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     prompt: 'In TypeScript, what enables the compiler to narrow a discriminated union type to a specific branch in a switch statement?',
     options: [
       'A shared literal property (discriminant) present in every member of the union',
-      'Using the `as any` type assertion on the switch expression',
+      'Using the \`as any\` type assertion on the switch expression',
       'Declaring all union members as TypeScript classes instead of interfaces',
       'Importing the TypeScript runtime reflection engine'
     ],
     correctAnswer: 'A shared literal property (discriminant) present in every member of the union',
-    explanation: 'A discriminated union requires a common literal property (e.g. `status: "loading" | "success" | "error"`) present across all union members. Checking this property allows TypeScript control-flow analysis to narrow the type automatically.',
+    explanation: 'A discriminated union requires a common literal property (e.g. \`status: "loading" | "success" | "error"\`) present across all union members. Checking this property allows TypeScript control-flow analysis to narrow the type automatically.',
     distractorExplanations: {
-      'Using `as any`': 'Destroys type safety entirely rather than narrowing.',
+      'Using \`as any\`': 'Destroys type safety entirely rather than narrowing.',
       'Declaring as classes': 'TypeScript supports structural typing across pure interfaces and type aliases without classes.',
       'Runtime reflection': 'TypeScript types are fully erased at compile time.'
     },
@@ -275,7 +281,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'REACT_KEYS_RECONCILIATION',
     questionVariant: 'index_as_key_antipattern',
     variantGroupId: 'vg-react-key-01',
-    prompt: 'Why is using array index as the `key` prop in dynamic list rendering considered an anti-pattern when items can be filtered, reordered, or deleted?',
+    prompt: 'Why is using array index as the \`key\` prop in dynamic list rendering considered an anti-pattern when items can be filtered, reordered, or deleted?',
     options: [
       'It breaks React element identity tracking across reconciliations, causing stateful child components to retain incorrect internal state',
       'React throws a fatal runtime compilation exception when array indexes are passed as keys',
@@ -311,17 +317,17 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     variantGroupId: 'vg-a11y-live-01',
     prompt: 'A single-page web application displays real-time toast error notifications asynchronously without reloading the page. Which ARIA attribute should be applied so screen readers announce errors without interrupting active reading?',
     options: [
-      '`aria-live="polite"`',
-      '`aria-live="assertive"`',
-      '`aria-hidden="false"`',
-      '`role="tooltip"`'
+      '\`aria-live="polite"\`',
+      '\`aria-live="assertive"\`',
+      '\`aria-hidden="false"\`',
+      '\`role="tooltip"\`'
     ],
-    correctAnswer: '`aria-live="polite"`',
-    explanation: '`aria-live="polite"` notifies assistive technologies to speak the dynamic message when the user pauses or finishes their current task. `assertive` interrupts the user immediately and is reserved for critical emergencies.',
+    correctAnswer: '\`aria-live="polite"\`',
+    explanation: '\`aria-live="polite"\` notifies assistive technologies to speak the dynamic message when the user pauses or finishes their current task. \`assertive\` interrupts the user immediately and is reserved for critical emergencies.',
     distractorExplanations: {
-      '`aria-live="assertive"`': 'Interrupts current speech immediately, which is disruptive for standard toasts.',
-      '`aria-hidden="false"`': 'Only indicates element visibility; does not announce dynamic content changes.',
-      '`role="tooltip"`': 'Used for hover hints, not asynchronous dynamic announcements.'
+      '\`aria-live="assertive"\`': 'Interrupts current speech immediately, which is disruptive for standard toasts.',
+      '\`aria-hidden="false"\`': 'Only indicates element visibility; does not announce dynamic content changes.',
+      '\`role="tooltip"\`': 'Used for hover hints, not asynchronous dynamic announcements.'
     },
     conceptTested: 'WCAG 2.2 Live Region Announcements & Screen Reader UX',
     expectedTimeSeconds: 50,
@@ -345,13 +351,13 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     variantGroupId: 'vg-fe-cls-01',
     prompt: 'What is the most effective modern CSS technique to eliminate Cumulative Layout Shift (CLS) when loading responsive hero banner images?',
     options: [
-      'Define explicit `aspect-ratio` or `width` and `height` attributes on the `<img>` element',
-      'Apply `position: absolute` with `z-index: 999` to all images',
-      'Use JavaScript to defer rendering until the window `onload` event fires',
+      'Define explicit \`aspect-ratio\` or \`width\` and \`height\` attributes on the \`<img>\` element',
+      'Apply \`position: absolute\` with \`z-index: 999\` to all images',
+      'Use JavaScript to defer rendering until the window \`onload\` event fires',
       'Convert all images to base64 data URIs inline in HTML'
     ],
-    correctAnswer: 'Define explicit `aspect-ratio` or `width` and `height` attributes on the `<img>` element',
-    explanation: 'By specifying `width` and `height` attributes or the CSS `aspect-ratio` property, the browser calculates the reserved layout box before the image bytes download, preventing layout reflow and CLS spikes.',
+    correctAnswer: 'Define explicit \`aspect-ratio\` or \`width\` and \`height\` attributes on the \`<img>\` element',
+    explanation: 'By specifying \`width\` and \`height\` attributes or the CSS \`aspect-ratio\` property, the browser calculates the reserved layout box before the image bytes download, preventing layout reflow and CLS spikes.',
     distractorExplanations: {
       'position: absolute': 'Removes element from document flow but creates maintenance nightmares for layout containers.',
       'Defer with window onload': 'Dramatically damages Largest Contentful Paint (LCP) and user perceived speed.',
@@ -377,19 +383,19 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'TS_GENERIC_PROPS_REACT',
     questionVariant: 'generic_select_item_inference',
     variantGroupId: 'vg-fe-ts-gen-01',
-    prompt: 'A developer defines a reusable Dropdown in React: `function Dropdown<T extends { id: string; label: string }>({ items, onSelect }: { items: T[]; onSelect: (item: T) => void })`. What benefit does this generic signature guarantee to consumer components?',
+    prompt: 'A developer defines a reusable Dropdown in React: \`function Dropdown<T extends { id: string; label: string }>({ items, onSelect }: { items: T[]; onSelect: (item: T) => void })\`. What benefit does this generic signature guarantee to consumer components?',
     options: [
-      'The consumer\'s `onSelect` callback receives the exact custom type of `T` with full property autocomplete instead of an arbitrary `any`',
+      'The consumer\\'s \`onSelect\` callback receives the exact custom type of \`T\` with full property autocomplete instead of an arbitrary \`any\`',
       'The component automatically compiles down to WebAssembly for performance',
       'All items are automatically sorted alphabetically by ID at runtime',
-      'TypeScript enforces that `items` can only contain numeric primitive values'
+      'TypeScript enforces that \`items\` can only contain numeric primitive values'
     ],
-    correctAnswer: 'The consumer\'s `onSelect` callback receives the exact custom type of `T` with full property autocomplete instead of an arbitrary `any`',
-    explanation: 'TypeScript generics preserve the specific input type across collections and callbacks. When passing `User[]` to `Dropdown`, `onSelect` automatically knows `item` is `User` with all custom fields typed.',
+    correctAnswer: 'The consumer\\'s \`onSelect\` callback receives the exact custom type of \`T\` with full property autocomplete instead of an arbitrary \`any\`',
+    explanation: 'TypeScript generics preserve the specific input type across collections and callbacks. When passing \`User[]\` to \`Dropdown\`, \`onSelect\` automatically knows \`item\` is \`User\` with all custom fields typed.',
     distractorExplanations: {
       'WebAssembly compilation': 'TypeScript only outputs JavaScript; it does not produce WebAssembly.',
       'Automatic sorting': 'Type annotations never alter runtime execution behavior or array ordering.',
-      'Only numeric values': 'The constraint specifies `{ id: string; label: string }`, requiring strings, not numbers.'
+      'Only numeric values': 'The constraint specifies \`{ id: string; label: string }\`, requiring strings, not numbers.'
     },
     conceptTested: 'Generic Type Constraints and Inferred Callback Signatures',
     expectedTimeSeconds: 50,
@@ -416,7 +422,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
       'Capturing Phase (Window down to Button) → Target Phase → Bubbling Phase (Button up to Window)',
       'Bubbling Phase (Button up to Window) → Capturing Phase (Window down to Button)',
       'Target Phase executes first, followed by simultaneous parallel broadcasting',
-      'Capturing only occurs if `event.stopPropagation()` is explicitly called'
+      'Capturing only occurs if \`event.stopPropagation()\` is explicitly called'
     ],
     correctAnswer: 'Capturing Phase (Window down to Button) → Target Phase → Bubbling Phase (Button up to Window)',
     explanation: 'The standard W3C DOM event dispatch flow begins with the capturing phase (window -> document -> html -> body -> ... -> target), dispatches on the target, and finally bubbles back up to window.',
@@ -482,7 +488,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'DB_TRANSACTION_ISOLATION',
     questionVariant: 'phantom_read_prevention',
     variantGroupId: 'vg-db-iso-01',
-    prompt: 'Transaction T1 queries `SELECT count(*) FROM users WHERE status = \'ACTIVE\'`. Concurrently, Transaction T2 inserts a new active user and commits. If T1 runs the count query again and sees a different count, which anomaly occurred, and which isolation level prevents it in standard ANSI SQL?',
+    prompt: 'Transaction T1 queries \`SELECT count(*) FROM users WHERE status = \\'ACTIVE\\'\`. Concurrently, Transaction T2 inserts a new active user and commits. If T1 runs the count query again and sees a different count, which anomaly occurred, and which isolation level prevents it in standard ANSI SQL?',
     options: [
       'Phantom Read anomaly; prevented by SERIALIZABLE isolation',
       'Dirty Read anomaly; prevented by READ UNCOMMITTED isolation',
@@ -558,7 +564,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
       'JWT signatures can be forged if the database goes offline'
     ],
     correctAnswer: 'Stateless JWTs are self-contained and valid until their expiration timestamp; revoking them immediately requires maintaining a centralized token blacklist or state store',
-    explanation: 'Because stateless JWT verification relies solely on the cryptographic signature and `exp` claim, a server cannot revoke an issued token before it expires unless it checks a centralized revocation list (e.g. in Redis), which negates pure statelessness.',
+    explanation: 'Because stateless JWT verification relies solely on the cryptographic signature and \`exp\` claim, a server cannot revoke an issued token before it expires unless it checks a centralized revocation list (e.g. in Redis), which negates pure statelessness.',
     distractorExplanations: {
       'Cannot be encrypted over HTTPS': 'JWTs transmit safely over standard TLS headers.',
       'Browsers delete after 5 minutes': 'Browser storage retention depends on localStorage or cookie policies, not JWT standards.',
@@ -620,12 +626,12 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     variantGroupId: 'vg-be-pool-01',
     prompt: 'A backend application deployed on serverless functions experiences intermittent "FATAL: remaining connection slots are reserved for non-replication superuser connections" errors from PostgreSQL during traffic surges. What is the fundamental root cause and the canonical architectural solution?',
     options: [
-      'Each ephemeral serverless instance opens dedicated database connections that overwhelm PostgreSQL\'s max_connections limit; deploy a connection proxy pooler like PgBouncer or Supabase Pooler',
+      'Each ephemeral serverless instance opens dedicated database connections that overwhelm PostgreSQL\\'s max_connections limit; deploy a connection proxy pooler like PgBouncer or Supabase Pooler',
       'PostgreSQL has a hard limit of 5 total queries per second worldwide; migrate the database to SQLite',
       'The serverless functions are compiled in C++ instead of Python',
       'The database disk storage is completely full of temporary files'
     ],
-    correctAnswer: 'Each ephemeral serverless instance opens dedicated database connections that overwhelm PostgreSQL\'s max_connections limit; deploy a connection proxy pooler like PgBouncer or Supabase Pooler',
+    correctAnswer: 'Each ephemeral serverless instance opens dedicated database connections that overwhelm PostgreSQL\\'s max_connections limit; deploy a connection proxy pooler like PgBouncer or Supabase Pooler',
     explanation: 'Serverless functions scale horizontally, spawning hundreds of concurrent instances. If each container initializes its own connection pool, PostgreSQL runs out of process slots (max_connections). Placing PgBouncer or AWS RDS Proxy between lambdas and Postgres multiplexes thousands of incoming connections.',
     distractorExplanations: {
       '5 queries per second limit': 'PostgreSQL handles tens of thousands of queries per second easily.',
@@ -655,7 +661,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'SEC_PASSWORD_HASHING_ALGORITHMS',
     questionVariant: 'bcrypt_argon2_vs_sha256',
     variantGroupId: 'vg-sec-hash-01',
-    prompt: 'Why is standard `SHA-256` or `SHA-512` unsuitable for storing user authentication passwords, even when a unique cryptographic salt is added?',
+    prompt: 'Why is standard \`SHA-256\` or \`SHA-512\` unsuitable for storing user authentication passwords, even when a unique cryptographic salt is added?',
     options: [
       'SHA family algorithms are engineered for maximum hardware hashing speed, enabling attackers to test billions of candidates per second using GPUs/ASICs; slow memory-hard functions (Argon2id, bcrypt) are required',
       'SHA-256 hashes are easily reversible using basic mathematical modular arithmetic',
@@ -759,12 +765,12 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     variantGroupId: 'vg-sec-mtls-01',
     prompt: 'In microservice service meshes, how does Mutual TLS (mTLS) differ from standard one-way TLS used in public web browsing?',
     options: [
-      'Both the client and the server present X.509 cryptographic certificates to verify each other\'s identity before establishing the encrypted session',
+      'Both the client and the server present X.509 cryptographic certificates to verify each other\\'s identity before establishing the encrypted session',
       'mTLS eliminates cryptographic certificates and relies on basic plaintext API keys',
       'mTLS only encrypts UDP packets while ignoring TCP traffic',
       'mTLS operates without asymmetric key cryptography'
     ],
-    correctAnswer: 'Both the client and the server present X.509 cryptographic certificates to verify each other\'s identity before establishing the encrypted session',
+    correctAnswer: 'Both the client and the server present X.509 cryptographic certificates to verify each other\\'s identity before establishing the encrypted session',
     explanation: 'In standard TLS, only the server proves its identity to the client. In mTLS, both communicating peers authenticate each other using mutual X.509 digital certificates, establishing zero-trust service-to-service identity.',
     distractorExplanations: {
       'Eliminates certificates': 'mTLS doubles certificate usage by requiring client certificates.',
@@ -791,15 +797,15 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'SEC_AWS_IAM_LEAST_PRIVILEGE',
     questionVariant: 'wildcard_permission_remediation',
     variantGroupId: 'vg-sec-iam-01',
-    prompt: 'A junior engineer commits an AWS IAM policy: `{"Effect": "Allow", "Action": "*", "Resource": "*"}` to allow a backend Lambda to read files from an S3 bucket. What is the immediate architectural remediation required?',
+    prompt: 'A junior engineer commits an AWS IAM policy: \`{"Effect": "Allow", "Action": "*", "Resource": "*"}\` to allow a backend Lambda to read files from an S3 bucket. What is the immediate architectural remediation required?',
     options: [
-      'Scope the Action strictly to `s3:GetObject` and restrict Resource to the exact bucket ARN (e.g. `arn:aws:s3:::my-bucket/*`)',
+      'Scope the Action strictly to \`s3:GetObject\` and restrict Resource to the exact bucket ARN (e.g. \`arn:aws:s3:::my-bucket/*\`)',
       'Change the Effect from "Allow" to "Deny" for all AWS users',
-      'Add `"Condition": {"Bool": {"aws:SecureTransport": "false"}}` to the policy',
+      'Add \`"Condition": {"Bool": {"aws:SecureTransport": "false"}}\` to the policy',
       'Grant root access keys directly to the Lambda function runtime environment'
     ],
-    correctAnswer: 'Scope the Action strictly to `s3:GetObject` and restrict Resource to the exact bucket ARN (e.g. `arn:aws:s3:::my-bucket/*`)',
-    explanation: 'Granting `Action: *` and `Resource: *` gives complete superuser control over the entire AWS cloud account. Adhering to the principle of least privilege requires restricting actions to `s3:GetObject` and limiting scope to the specific bucket ARN.',
+    correctAnswer: 'Scope the Action strictly to \`s3:GetObject\` and restrict Resource to the exact bucket ARN (e.g. \`arn:aws:s3:::my-bucket/*\`)',
+    explanation: 'Granting \`Action: *\` and \`Resource: *\` gives complete superuser control over the entire AWS cloud account. Adhering to the principle of least privilege requires restricting actions to \`s3:GetObject\` and limiting scope to the specific bucket ARN.',
     distractorExplanations: {
       'Change to Deny': 'Breaks the Lambda completely by blocking everything.',
       'SecureTransport: false': 'Permits insecure unencrypted HTTP access, worsening vulnerability.',
@@ -862,7 +868,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'DS_HYPOTHESIS_TESTING_P_VALUE',
     questionVariant: 'alpha_significance_interpretation',
     variantGroupId: 'vg-ds-stat-01',
-    prompt: 'In an A/B hypothesis test with a significance threshold of `α = 0.05`, an experimental variant achieves a p-value of `0.018`. What is the precise statistical conclusion?',
+    prompt: 'In an A/B hypothesis test with a significance threshold of \`α = 0.05\`, an experimental variant achieves a p-value of \`0.018\`. What is the precise statistical conclusion?',
     options: [
       'Reject the null hypothesis; the observed effect has less than a 5% probability of occurring purely by random chance assuming the null hypothesis is true',
       'Accept the null hypothesis; the p-value confirms the experimental feature is defective',
@@ -896,7 +902,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'DS_SQL_WINDOW_FUNCTIONS',
     questionVariant: 'ranking_tied_scores',
     variantGroupId: 'vg-ds-sql-01',
-    prompt: 'Three customers share the identical purchase spend of $500 in a dataset. If `DENSE_RANK() OVER (ORDER BY spend DESC)` is computed, what rank number will the fourth customer with $400 spend receive?',
+    prompt: 'Three customers share the identical purchase spend of $500 in a dataset. If \`DENSE_RANK() OVER (ORDER BY spend DESC)\` is computed, what rank number will the fourth customer with $400 spend receive?',
     options: [
       'Rank 2',
       'Rank 4',
@@ -904,9 +910,9 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
       'Rank 1'
     ],
     correctAnswer: 'Rank 2',
-    explanation: 'Unlike `RANK()` which skips ranks on ties (1, 1, 1, 4), `DENSE_RANK()` does not skip numbers. All three customers with $500 receive rank 1, and the next unique spend value ($400) immediately receives rank 2.',
+    explanation: 'Unlike \`RANK()\` which skips ranks on ties (1, 1, 1, 4), \`DENSE_RANK()\` does not skip numbers. All three customers with $500 receive rank 1, and the next unique spend value ($400) immediately receives rank 2.',
     distractorExplanations: {
-      'Rank 4': 'That would be the result of standard `RANK()`, which skips 2 and 3.',
+      'Rank 4': 'That would be the result of standard \`RANK()\`, which skips 2 and 3.',
       'Rank 3': 'Arbitrary calculation.',
       'Rank 1': 'A lower spend amount cannot share the top rank.'
     },
@@ -1032,10 +1038,10 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'DS_DATA_LEAKAGE_PREVENTION',
     questionVariant: 'standard_scaler_train_test_fit',
     variantGroupId: 'vg-ds-leak-01',
-    prompt: 'What constitutes data leakage when scaling numeric features using `StandardScaler` during cross-validation?',
+    prompt: 'What constitutes data leakage when scaling numeric features using \`StandardScaler\` during cross-validation?',
     options: [
       'Fitting the scaler on the entire dataset (including validation folds) before splitting into train/test sets',
-      'Fitting the scaler exclusively on training folds and using `transform()` on test folds',
+      'Fitting the scaler exclusively on training folds and using \`transform()\` on test folds',
       'Using pandas DataFrames instead of numpy arrays',
       'Calculating the standard deviation using N-1 degrees of freedom'
     ],
@@ -1137,7 +1143,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'AI_FUNCTION_CALLING_JSON_SCHEMA',
     questionVariant: 'strict_schema_constrained_decoding',
     variantGroupId: 'vg-ai-func-01',
-    prompt: 'Modern LLM API providers offer "Structured Outputs" using JSON Schema with constrained grammar decoding. How does this guarantee that the model\'s response adheres 100% to the specified schema?',
+    prompt: 'Modern LLM API providers offer "Structured Outputs" using JSON Schema with constrained grammar decoding. How does this guarantee that the model\\'s response adheres 100% to the specified schema?',
     options: [
       'The inference engine constrains token logit sampling at every generation step to only permit valid tokens that satisfy the grammar state machine',
       'A regular expression post-processor rewrites invalid text after generation finishes',
@@ -1205,7 +1211,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'AI_SAMPLING_TEMPERATURE_TOP_P',
     questionVariant: 'temperature_zero_deterministic_behavior',
     variantGroupId: 'vg-ai-temp-01',
-    prompt: 'When generating structured outputs (such as code generation or data extraction), why is setting `temperature = 0` standard engineering practice?',
+    prompt: 'When generating structured outputs (such as code generation or data extraction), why is setting \`temperature = 0\` standard engineering practice?',
     options: [
       'It collapses the softmax probability distribution to greedy decoding, selecting the highest probability token at each step for maximum deterministic reproducibility',
       'It speeds up the GPU clock frequency by 50%',
@@ -1239,15 +1245,15 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'PYTHON_ASYNCIO_CONCURRENCY',
     questionVariant: 'asyncio_gather_vs_sequential_await',
     variantGroupId: 'vg-py-async-01',
-    prompt: 'A Python service evaluates 50 user prompts by running: `for prompt in prompts: response = await client.chat.completions.create(...)`. The job takes 100 seconds (2s per call). How should this be refactored to execute concurrently within 4 seconds?',
+    prompt: 'A Python service evaluates 50 user prompts by running: \`for prompt in prompts: response = await client.chat.completions.create(...)\`. The job takes 100 seconds (2s per call). How should this be refactored to execute concurrently within 4 seconds?',
     options: [
-      'Wrap all calls in an `asyncio.gather(*[client.chat.completions.create(...) for prompt in prompts])` coroutine batch with a Semaphore for rate limits',
+      'Wrap all calls in an \`asyncio.gather(*[client.chat.completions.create(...) for prompt in prompts])\` coroutine batch with a Semaphore for rate limits',
       'Replace Python with a shell script loop',
-      'Change all async functions to synchronous `def` functions',
+      'Change all async functions to synchronous \`def\` functions',
       'Increase the server RAM allocation from 4GB to 64GB'
     ],
-    correctAnswer: 'Wrap all calls in an `asyncio.gather(*[client.chat.completions.create(...) for prompt in prompts])` coroutine batch with a Semaphore for rate limits',
-    explanation: 'Sequential await runs one HTTP request after another, suffering total cumulative latency. `asyncio.gather` fires all I/O-bound requests concurrently on the event loop, completing in the time of the slowest single request.',
+    correctAnswer: 'Wrap all calls in an \`asyncio.gather(*[client.chat.completions.create(...) for prompt in prompts])\` coroutine batch with a Semaphore for rate limits',
+    explanation: 'Sequential await runs one HTTP request after another, suffering total cumulative latency. \`asyncio.gather\` fires all I/O-bound requests concurrently on the event loop, completing in the time of the slowest single request.',
     distractorExplanations: {
       'Shell script loop': 'A basic shell loop still runs sequentially by default.',
       'Change to synchronous': 'Synchronous execution blocks the entire OS thread on network I/O.',
@@ -1276,7 +1282,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'K8S_PROBE_LIFECYCLE',
     questionVariant: 'readiness_vs_liveness_traffic_removal',
     variantGroupId: 'vg-k8s-probe-01',
-    prompt: 'In Kubernetes, what is the exact operational difference between a failed `readinessProbe` and a failed `livenessProbe`?',
+    prompt: 'In Kubernetes, what is the exact operational difference between a failed \`readinessProbe\` and a failed \`livenessProbe\`?',
     options: [
       'A failed readinessProbe temporarily stops routing Service traffic to the Pod without restarting it, whereas a failed livenessProbe causes kubelet to kill and restart the container',
       'A failed readinessProbe deletes the entire cluster, while livenessProbe logs a warning',
@@ -1310,7 +1316,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'TF_STATE_LOCKING',
     questionVariant: 'concurrent_apply_prevention',
     variantGroupId: 'vg-tf-lock-01',
-    prompt: 'Two engineers run `terraform apply` in different CI/CD pipelines simultaneously on the same cloud environment. Why is configuring an Amazon DynamoDB table in the Terraform S3 backend configuration essential?',
+    prompt: 'Two engineers run \`terraform apply\` in different CI/CD pipelines simultaneously on the same cloud environment. Why is configuring an Amazon DynamoDB table in the Terraform S3 backend configuration essential?',
     options: [
       'DynamoDB provides distributed state locking via MD5 hashes, preventing concurrent pipelines from corrupting the remote terraform.tfstate file',
       'DynamoDB stores the actual source code of the Terraform modules',
@@ -1356,7 +1362,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     distractorExplanations: {
       'Weekends vs weekdays': 'Arbitrary schedule nonsense.',
       'Terminating all existing servers': 'That describes an In-Place / Downtime deployment.',
-      'Does not support rollback': 'Blue-Green\'s primary virtue is instant instantaneous rollback by repointing the router.'
+      'Does not support rollback': 'Blue-Green\\'s primary virtue is instant instantaneous rollback by repointing the router.'
     },
     conceptTested: 'Progressive Delivery Patterns: Canary vs Blue-Green',
     expectedTimeSeconds: 45,
@@ -1378,15 +1384,15 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'LINUX_SIGNALS_PROCESS_TERMINATION',
     questionVariant: 'sigterm_vs_sigkill_handling',
     variantGroupId: 'vg-linux-sig-01',
-    prompt: 'When stopping a production container, Docker first sends `SIGTERM` (Signal 15), waits 10 seconds, and then sends `SIGKILL` (Signal 9). Why is `SIGTERM` preferred for graceful shutdown?',
+    prompt: 'When stopping a production container, Docker first sends \`SIGTERM\` (Signal 15), waits 10 seconds, and then sends \`SIGKILL\` (Signal 9). Why is \`SIGTERM\` preferred for graceful shutdown?',
     options: [
-      '`SIGTERM` can be intercepted by the application process to finish in-flight HTTP requests and close database connections, whereas `SIGKILL` cannot be caught or ignored',
-      '`SIGKILL` is an optional advisory signal that processes can safely ignore indefinitely',
-      '`SIGTERM` immediately wipes the root hard drive partition',
-      '`SIGTERM` only applies to background daemon processes written in C'
+      '\`SIGTERM\` can be intercepted by the application process to finish in-flight HTTP requests and close database connections, whereas \`SIGKILL\` cannot be caught or ignored',
+      '\`SIGKILL\` is an optional advisory signal that processes can safely ignore indefinitely',
+      '\`SIGTERM\` immediately wipes the root hard drive partition',
+      '\`SIGTERM\` only applies to background daemon processes written in C'
     ],
-    correctAnswer: '`SIGTERM` can be intercepted by the application process to finish in-flight HTTP requests and close database connections, whereas `SIGKILL` cannot be caught or ignored',
-    explanation: '`SIGTERM` requests graceful termination; the process catches the signal, drains active traffic, closes connection pools, and exits cleanly. `SIGKILL` cannot be handled or blocked by design—the OS kernel terminates the process instantly.',
+    correctAnswer: '\`SIGTERM\` can be intercepted by the application process to finish in-flight HTTP requests and close database connections, whereas \`SIGKILL\` cannot be caught or ignored',
+    explanation: '\`SIGTERM\` requests graceful termination; the process catches the signal, drains active traffic, closes connection pools, and exits cleanly. \`SIGKILL\` cannot be handled or blocked by design—the OS kernel terminates the process instantly.',
     distractorExplanations: {
       'SIGKILL can be ignored': 'POSIX mandates that SIGKILL cannot be caught, blocked, or ignored by user space.',
       'Wipes root drive': 'Signals send notifications to process tables, not disk formatting tools.',
@@ -1520,7 +1526,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'UX_DESIGN_TOKENS_VARIABLES',
     questionVariant: 'semantic_vs_primitive_tokens',
     variantGroupId: 'vg-ux-token-01',
-    prompt: 'In modern design system architecture, what is the role of a semantic design token (e.g. `color.surface.danger`) compared to a raw primitive token (e.g. `color.red.500`)?',
+    prompt: 'In modern design system architecture, what is the role of a semantic design token (e.g. \`color.surface.danger\`) compared to a raw primitive token (e.g. \`color.red.500\`)?',
     options: [
       'Semantic tokens communicate contextual intent and usage, allowing themes (e.g. Dark Mode) to re-map values without breaking component designs',
       'Primitive tokens can only be used by developers, whereas semantic tokens can only be viewed in Figma',
@@ -1528,7 +1534,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
       'There is no difference; they are redundant aliases'
     ],
     correctAnswer: 'Semantic tokens communicate contextual intent and usage, allowing themes (e.g. Dark Mode) to re-map values without breaking component designs',
-    explanation: 'Primitive tokens define raw aesthetic values (`red-500: #EF4444`). Semantic tokens abstract the intent (`surface.danger: { light: red-100, dark: red-900 }`). Components bind to semantic tokens, making theming and dark mode instantaneous.',
+    explanation: 'Primitive tokens define raw aesthetic values (\`red-500: #EF4444\`). Semantic tokens abstract the intent (\`surface.danger: { light: red-100, dark: red-900 }\`). Components bind to semantic tokens, making theming and dark mode instantaneous.',
     distractorExplanations: {
       'Only used by developers': 'Designers and developers share the exact same token names across design tools and code.',
       'Permanently lock values': 'Tokens exist specifically to enable flexible centralized updates.',
@@ -1548,13 +1554,13 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     careerRoleSlug: 'ui-ux-designer',
     skillName: 'UX Research & Usability Testing',
     competency: 'Usability Evaluation & Human Factors',
-    topic: 'Nielsen\'s 10 Usability Heuristics',
+    topic: 'Nielsen\\'s 10 Usability Heuristics',
     difficulty: 'L3',
     questionType: 'SCENARIO',
     questionFamily: 'UX_NIELSEN_HEURISTICS',
     questionVariant: 'visibility_of_system_status',
     variantGroupId: 'vg-ux-heur-01',
-    prompt: 'A user uploads a 50MB video file. The application shows no loading spinner, progress bar, or status message for 20 seconds, leading the user to click the submit button 5 times. Which of Jakob Nielsen\'s 10 Usability Heuristics is violated?',
+    prompt: 'A user uploads a 50MB video file. The application shows no loading spinner, progress bar, or status message for 20 seconds, leading the user to click the submit button 5 times. Which of Jakob Nielsen\\'s 10 Usability Heuristics is violated?',
     options: [
       'Visibility of System Status',
       'Aesthetic and Minimalist Design',
@@ -1625,7 +1631,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'MKT_SEO_CANONICAL_TAGS',
     questionVariant: 'duplicate_parameter_urls',
     variantGroupId: 'vg-mkt-seo-01',
-    prompt: 'An e-commerce site generates separate URLs for filtered product views (e.g. `/shoes?color=blue&size=10`). How does adding a `<link rel="canonical">` tag pointing to `/shoes` protect search engine rankings?',
+    prompt: 'An e-commerce site generates separate URLs for filtered product views (e.g. \`/shoes?color=blue&size=10\`). How does adding a \`<link rel="canonical">\` tag pointing to \`/shoes\` protect search engine rankings?',
     options: [
       'It informs Google search crawlers to consolidate ranking signals and link equity to the master URL, preventing duplicate content penalties',
       'It blocks users from clicking back buttons in their browser',
@@ -1738,7 +1744,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
       '"Why did you choose to study at your university?"'
     ],
     correctAnswer: '"What was the final outcome or measurable result of that project, and what did you learn from the experience?"',
-    explanation: 'The STAR method requires Situation, Task, Action, and Result. Without the Result, the interviewer cannot evaluate whether the candidate\'s actions achieved success, resolved the conflict, or demonstrated self-awareness.',
+    explanation: 'The STAR method requires Situation, Task, Action, and Result. Without the Result, the interviewer cannot evaluate whether the candidate\\'s actions achieved success, resolved the conflict, or demonstrated self-awareness.',
     distractorExplanations: {
       'Salary expectation': 'Compensation questions belong in screening stages, not behavioral assessment.',
       'Introvert vs extrovert': 'Unstructured pseudo-psychology questions introduce severe bias.',
@@ -1778,7 +1784,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     explanation: 'Rate of Worker A = 1/12 task/hr. Rate of Worker B = 1/6 (or 2/12) task/hr. Combined rate = 1/12 + 2/12 = 3/12 = 1/4 task/hr. Total time = 1 / (1/4) = 4 hours.',
     distractorExplanations: {
       '9 hours': 'Takes the arithmetic mean (12 + 6)/2 instead of harmonic rate combination.',
-      '3 hours': 'Divides 6 hours in half without weighting Worker A\'s slower rate.',
+      '3 hours': 'Divides 6 hours in half without weighting Worker A\\'s slower rate.',
       '4.5 hours': 'Incorrect fractional addition.'
     },
     conceptTested: 'Quantitative Rate Equations & Work Proportions',
@@ -1873,7 +1879,7 @@ export const UNIVERSAL_QUESTION_BANK: AssessmentQuestion[] = [
     questionFamily: 'LOGIC_SYLLOGISM_DEDUCTION',
     questionVariant: 'quantified_subset_statements',
     variantGroupId: 'vg-logic-syl-01',
-    prompt: 'Statements:\n1. All microservices are decoupled systems.\n2. Some decoupled systems use event streams.\nConclusions:\nI. All microservices use event streams.\nII. Some decoupled systems are microservices.\nWhich conclusion(s) logically follow?',
+    prompt: 'Statements:\\n1. All microservices are decoupled systems.\\n2. Some decoupled systems use event streams.\\nConclusions:\\nI. All microservices use event streams.\\nII. Some decoupled systems are microservices.\\nWhich conclusion(s) logically follow?',
     options: [
       'Only Conclusion II follows',
       'Only Conclusion I follows',
@@ -1936,3 +1942,7 @@ export function getQuestionsByRole(roleSlug: string): AssessmentQuestion[] {
     (q) => q.careerRoleSlug === roleSlug || q.careerRoleSlug === 'universal'
   );
 }
+`;
+
+fs.writeFileSync(scriptPath, content, 'utf8');
+console.log('Successfully generated full universal question bank at', scriptPath);

@@ -37,6 +37,8 @@ export default function OpportunitiesHubPage() {
     { label: 'Saved', href: ROUTES.app.opportunities.saved, active: false },
   ];
 
+  const activeRoleSlug = state.targetCareerSlug || 'full-stack-developer';
+
   const filtered = OPPORTUNITIES_CATALOG.filter((item) => {
     const matchesFilter = filterType === 'ALL' || item.employmentType === filterType || (filterType === 'REMOTE' && item.isRemote);
     const matchesSearch =
@@ -44,6 +46,10 @@ export default function OpportunitiesHubPage() {
       item.companyName.toLowerCase().includes(search.toLowerCase()) ||
       item.location.toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
+  }).sort((a, b) => {
+    const aExact = a.roleSlug === activeRoleSlug ? 1 : 0;
+    const bExact = b.roleSlug === activeRoleSlug ? 1 : 0;
+    return bExact - aExact;
   });
 
   return (

@@ -57,13 +57,19 @@ export default function DynamicAssessmentRunnerPage() {
       const stored = sessionStorage.getItem(`l2h_dynamic_answers_${id}_${roleSlug}`);
       if (stored) {
         setSelectedAnswers(JSON.parse(stored));
+      } else {
+        setSelectedAnswers({});
       }
       const storedIdx = sessionStorage.getItem(`l2h_dynamic_idx_${id}_${roleSlug}`);
       if (storedIdx) {
         const parsedIdx = parseInt(storedIdx, 10);
         if (!isNaN(parsedIdx) && parsedIdx >= 0) {
           setCurrentIndex(parsedIdx);
+        } else {
+          setCurrentIndex(0);
         }
+      } else {
+        setCurrentIndex(0);
       }
     } catch {
       // ignore
