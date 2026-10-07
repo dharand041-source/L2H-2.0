@@ -761,6 +761,69 @@ export function useCandidateState() {
     }
   };
 
+  const recordPracticeCompletion = async (
+    skillName: string,
+    score: number,
+    details?: { challengeTitle: string; passedTests: number; totalTests: number }
+  ) => {
+    updateState((prev) => {
+      const updatedSkills = prev.skills.map((s) => {
+        if (
+          s.name.toLowerCase() === skillName.toLowerCase() ||
+          s.name.toLowerCase().includes(skillName.toLowerCase()) ||
+          skillName.toLowerCase().includes(s.name.toLowerCase())
+        ) {
+          const nextEvCount = (s.evidenceCount || 0) + 1;
+          const nextConf = Math.min((s.confidence || 0.5) + 0.15, 0.95);
+          // If candidate solved with >= 90%, upgrade level if lower than target
+          let nextLevel = s.currentLevel;
+          if (score >= 90 && (s.currentLevel === 'L0' || s.currentLevel === 'L1')) {
+            nextLevel = 'L2';
+          }
+          const reqNum = parseInt(s.requiredLevel.replace('L', ''), 10) || 3;
+          const curNum = parseInt(nextLevel.replace('L', ''), 10) || 1;
+          const nextGap = Math.max(0, reqNum - curNum);
+
+          return {
+            ...s,
+            currentLevel: nextLevel,
+            gap: nextGap,
+            confidence: nextConf,
+            evidenceCount: nextEvCount,
+            priority: nextGap === 0 ? ('SATISFIED' as const) : nextGap >= 2 ? ('CRITICAL' as const) : ('HIGH' as const),
+          };
+        }
+        return s;
+      });
+
+      return {
+        ...prev,
+        stage: 'PRACTICE_ACTIVE',
+        skills: updatedSkills,
+      };
+    });
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const skillUuid = getSkillUuid(skillName);
+        await supabase.from('user_skills').upsert(
+          {
+            user_id: user.id,
+            skill_id: skillUuid,
+            confidence_score: 0.85,
+            evidence_count: 1,
+            last_assessed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,skill_id' }
+        );
+      }
+    } catch (err) {
+      console.warn('Practice evidence persist note:', err);
+    }
+  };
+
   const applyToOpportunity = async (job: {
     id: string;
     companyName: string;
@@ -838,6 +901,7 @@ export function useCandidateState() {
     updateState,
     setTargetRole,
     recordAssessmentCompletion,
+    recordPracticeCompletion,
     applyToOpportunity,
     resetToDefault,
     signOut,

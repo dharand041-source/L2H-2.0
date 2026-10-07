@@ -51,12 +51,16 @@ UNIVERSAL_QUESTION_BANK.forEach((q) => {
   assert(!!q.id && q.id.length > 0, `Question ${q.id} has valid ID`);
   assert(!!q.questionText && q.questionText.length > 15, `Question ${q.id} has descriptive prompt`);
   assert(Array.isArray(q.options) && q.options.length >= 2, `Question ${q.id} has >= 2 options`);
-  assert(q.options.includes(q.correctAnswer), `Question ${q.id} correct answer exists in options`);
+  const isAnswerValid = Array.isArray(q.correctAnswer)
+    ? q.correctAnswer.every((ans) => q.options!.includes(ans))
+    : q.options!.includes(q.correctAnswer);
+  assert(isAnswerValid, `Question ${q.id} correct answer exists in options`);
   assert(!!q.explanation && q.explanation.length > 10, `Question ${q.id} has pedagogical explanation`);
   assert(!!q.normalizedHash && q.normalizedHash.length === 64, `Question ${q.id} has 64-char SHA-256 hash`);
   assert(!!q.questionFamily && q.questionFamily.length > 0, `Question ${q.id} belongs to a question family`);
   assert(!!q.variantGroupId, `Question ${q.id} has variant group ID`);
-  assert(['L1', 'L2', 'L3', 'L4', 'L5'].includes(q.targetLevel), `Question ${q.id} has valid target level (${q.targetLevel})`);
+  const lvl = q.targetLevel || q.difficulty;
+  assert(['L1', 'L2', 'L3', 'L4', 'L5'].includes(lvl), `Question ${q.id} has valid target level (${lvl})`);
   assert(
     ['VERIFIED_PUBLIC_REPORT', 'CURATED_COMPANY_PATTERN', 'COMMUNITY_REPORTED', 'PATTERN_INSPIRED', 'ORIGINAL_L2H'].includes(q.originalityStatus),
     `Question ${q.id} has valid originality status (${q.originalityStatus})`
@@ -187,7 +191,8 @@ for (const career of CAREER_ROLES_CATALOG) {
   // Simulate answers submission (50% correct)
   const answers: Record<string, string> = {};
   session.forEach((q, idx) => {
-    answers[q.id] = idx % 2 === 0 ? q.correctAnswer : 'WRONG_ANSWER';
+    const correctStr = Array.isArray(q.correctAnswer) ? q.correctAnswer[0] : q.correctAnswer;
+    answers[q.id] = idx % 2 === 0 ? correctStr : 'WRONG_ANSWER';
   });
 
   const evaluation = evaluateAssessmentSession(session, answers, career.slug);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Clock, ShieldCheck, ArrowRight, ArrowLeft } from 'lucide-react';
@@ -48,51 +48,122 @@ export default function DynamicAssessmentRunnerPage() {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Hydrate answers from sessionStorage to survive page refresh
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(`l2h_dynamic_answers_${id}_${roleSlug}`);
+      if (stored) {
+        setSelectedAnswers(JSON.parse(stored));
+      }
+      const storedIdx = sessionStorage.getItem(`l2h_dynamic_idx_${id}_${roleSlug}`);
+      if (storedIdx) {
+        const parsedIdx = parseInt(storedIdx, 10);
+        if (!isNaN(parsedIdx) && parsedIdx >= 0) {
+          setCurrentIndex(parsedIdx);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [id, roleSlug]);
 
   const currentQ = questions[currentIndex] || questions[0];
   const isLast = currentIndex === questions.length - 1;
+  const currentAnswer = selectedAnswers[currentQ?.id];
+  const hasAnsweredCurrent = Boolean(currentAnswer && currentAnswer.trim().length > 0);
 
   const handleSelect = (opt: string) => {
-    setSelectedAnswers(prev => ({ ...prev, [currentQ.id]: opt }));
+    if (isSaving || isSubmitting) return;
+
+    setSelectedAnswers((prev) => {
+      const next = { ...prev, [currentQ.id]: opt };
+      try {
+        sessionStorage.setItem(`l2h_dynamic_answers_${id}_${roleSlug}`, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
   };
 
-  const handleNext = () => {
-    if (!isLast) setCurrentIndex(prev => prev + 1);
+  const handleNext = async () => {
+    if (!hasAnsweredCurrent || isSaving || isSubmitting) return;
+
+    setIsSaving(true);
+    try {
+      sessionStorage.setItem(`l2h_dynamic_answers_${id}_${roleSlug}`, JSON.stringify(selectedAnswers));
+      sessionStorage.setItem(`l2h_dynamic_idx_${id}_${roleSlug}`, String(currentIndex + 1));
+    } catch {
+      // ignore
+    }
+
+    await new Promise((r) => setTimeout(r, 200));
+
+    if (!isLast) setCurrentIndex((prev) => prev + 1);
+    setIsSaving(false);
   };
 
   const handlePrev = () => {
-    if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
+    if (isSaving || isSubmitting) return;
+    if (currentIndex > 0) {
+      setCurrentIndex((prev) => {
+        const next = prev - 1;
+        try {
+          sessionStorage.setItem(`l2h_dynamic_idx_${id}_${roleSlug}`, String(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
+    }
   };
 
   const handleSubmit = async () => {
+    if (!hasAnsweredCurrent || isSubmitting || isSaving) return;
+
     setIsSubmitting(true);
-    const evalResult = evaluateAssessmentSession(questions, selectedAnswers, roleSlug);
+    try {
+      const evalResult = evaluateAssessmentSession(questions, selectedAnswers, roleSlug);
 
-    const seenQuestionsPayload = questions.map((q) => ({
-      questionId: q.id,
-      normalizedHash: q.normalizedHash,
-      questionFamily: q.questionFamily,
-      variantGroupId: q.variantGroupId,
-      correct: selectedAnswers[q.id] === q.correctAnswer,
-      score: selectedAnswers[q.id] === q.correctAnswer ? 100 : 0,
-    }));
+      const seenQuestionsPayload = questions.map((q) => ({
+        questionId: q.id,
+        normalizedHash: q.normalizedHash,
+        questionFamily: q.questionFamily,
+        variantGroupId: q.variantGroupId,
+        correct: selectedAnswers[q.id] === q.correctAnswer,
+        score: selectedAnswers[q.id] === q.correctAnswer ? 100 : 0,
+      }));
 
-    await recordAssessmentCompletion(evalResult.score, {
-      questions: questions.map((q) => ({ id: q.id, prompt: q.questionText || q.prompt || '' })),
-      answers: selectedAnswers,
-      calibratedSkills: evalResult.skillBreakdown.map((sb) => ({
-        skillName: sb.skillName,
-        calibratedLevel: sb.level,
-        score: sb.score,
-        confidence: 0.85,
-      })),
-      seenQuestions: seenQuestionsPayload,
-    });
+      await recordAssessmentCompletion(evalResult.score, {
+        questions: questions.map((q) => ({ id: q.id, prompt: q.questionText || q.prompt || '' })),
+        answers: selectedAnswers,
+        calibratedSkills: evalResult.skillBreakdown.map((sb) => ({
+          skillName: sb.skillName,
+          calibratedLevel: sb.level,
+          score: sb.score,
+          confidence: 0.85,
+        })),
+        seenQuestions: seenQuestionsPayload,
+      });
 
-    setTimeout(() => {
-      router.push(ROUTES.app.assessments.results(id));
-    }, 400);
+      // Clear session storage on success
+      try {
+        sessionStorage.removeItem(`l2h_dynamic_answers_${id}_${roleSlug}`);
+        sessionStorage.removeItem(`l2h_dynamic_idx_${id}_${roleSlug}`);
+      } catch {
+        // ignore
+      }
+
+      setTimeout(() => {
+        router.push(ROUTES.app.assessments.results(id));
+      }, 400);
+    } catch (err) {
+      console.error('Failed to submit dynamic assessment:', err);
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -139,7 +210,7 @@ export default function DynamicAssessmentRunnerPage() {
                 onClick={() => handleSelect(opt)}
                 className={`w-full p-3.5 text-left border-[1.5px] flex items-start gap-3 transition-all ${
                   isSelected
-                    ? 'bg-brand-orange text-white border-brand-ink'
+                    ? 'bg-brand-orange text-white border-brand-ink shadow-editorial-sm'
                     : 'bg-brand-cream text-brand-ink border-brand-ink/40 hover:bg-brand-paper'
                 }`}
               >
@@ -154,17 +225,36 @@ export default function DynamicAssessmentRunnerPage() {
           })}
         </div>
 
-        <div className="pt-6 border-t border-brand-ink/20 flex items-center justify-between">
-          <Button variant="outline" size="md" onClick={handlePrev} disabled={currentIndex === 0}>
+        <div className="pt-6 border-t border-brand-ink/20 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <Button
+            variant="outline"
+            size="md"
+            onClick={handlePrev}
+            disabled={currentIndex === 0 || isSaving || isSubmitting}
+            className="w-full sm:w-auto justify-center"
+          >
             &larr; Previous
           </Button>
+
           {isLast ? (
-            <Button variant="accent" size="md" onClick={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? 'Evaluating Diagnostic...' : 'Complete & View Results \u2192'}
+            <Button
+              variant="accent"
+              size="md"
+              onClick={handleSubmit}
+              disabled={!hasAnsweredCurrent || isSubmitting || isSaving}
+              className="w-full sm:w-auto justify-center"
+            >
+              {isSubmitting ? 'Evaluating Diagnostic...' : 'Submit Assessment \u2192'}
             </Button>
           ) : (
-            <Button variant="primary" size="md" onClick={handleNext}>
-              Next Question &rarr;
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleNext}
+              disabled={!hasAnsweredCurrent || isSaving || isSubmitting}
+              className="w-full sm:w-auto justify-center"
+            >
+              {isSaving ? 'Saving...' : 'Next Question \u2192'}
             </Button>
           )}
         </div>

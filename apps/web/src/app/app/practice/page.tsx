@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   Terminal,
   Code2,
@@ -13,14 +14,22 @@ import {
   Building2,
   History,
   ArrowRight,
-  CheckCircle2
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
+import { useCandidateState } from '@/lib/data/state-store';
 import { ROUTES } from '@/lib/routes';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
-export default function PracticeHubPage() {
+function PracticeHubInner() {
+  const searchParams = useSearchParams();
+  const skillParam = searchParams.get('skill');
+  const { state } = useCandidateState();
+
+  const activeWeakSkill = skillParam || state.skills.find((s) => s.gap > 0)?.name;
+
   const practiceCategories = [
     {
       id: 'coding',
@@ -126,6 +135,27 @@ export default function PracticeHubPage() {
         </div>
       </div>
 
+      {/* Dynamic Skill Gap Recommendation Banner */}
+      {activeWeakSkill && (
+        <div className="bg-brand-paper border-[1.5px] border-brand-ink p-5 shadow-editorial flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Badge variant="rose">RECOMMENDED FOR YOUR SKILL GAP</Badge>
+              <span className="text-xs font-bold text-brand-orange uppercase">{activeWeakSkill}</span>
+            </div>
+            <p className="text-xs text-brand-ink/80 font-medium">
+              Solve hands-on challenges in <strong>{activeWeakSkill}</strong> to log validated competency evidence and update your readiness score.
+            </p>
+          </div>
+
+          <Link href={`/app/practice/coding?skill=${encodeURIComponent(activeWeakSkill)}`}>
+            <Button variant="accent" size="sm" className="whitespace-nowrap">
+              Launch {activeWeakSkill} Lab →
+            </Button>
+          </Link>
+        </div>
+      )}
+
       {/* Categories Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {practiceCategories.map((cat) => {
@@ -164,5 +194,13 @@ export default function PracticeHubPage() {
         })}
       </div>
     </div>
+  );
+}
+
+export default function PracticeHubPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center font-display text-xl uppercase">Loading Practice Arena...</div>}>
+      <PracticeHubInner />
+    </Suspense>
   );
 }

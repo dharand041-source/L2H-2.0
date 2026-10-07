@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
-  MapPin,
   CheckCircle2,
   Circle,
   ExternalLink,
@@ -11,11 +10,14 @@ import {
   ArrowRight,
   TrendingUp,
   Clock,
-  Sparkles
+  Sparkles,
+  Code2,
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
 import { useCandidateState } from '@/lib/data/state-store';
 import { getCareerBySlug } from '@/lib/data/careers-data';
-import { CURATED_LEARNING_RESOURCES } from '@/lib/data/learning-data';
+import { generatePersonalizedRoadmap, PersonalizedRoadmapModule } from '@/lib/curriculum';
 import { ROUTES } from '@/lib/routes';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -26,93 +28,21 @@ export default function LearningRoadmapPage() {
   const { state } = useCandidateState();
   const currentRole = getCareerBySlug(state.targetCareerSlug);
 
-  const roadmapModules = [
-    {
-      step: '01',
-      skill: 'Node.js',
-      title: 'Node.js & Express Asynchronous Microservices',
-      provider: 'freeCodeCamp',
-      duration: '14 hrs',
-      levelUpgrade: 'L1 → L2',
-      status: 'IN_PROGRESS',
-      priority: 'CRITICAL',
-      url: 'https://www.freecodecamp.org/learn/back-end-development-and-apis/',
-      description: 'Event-driven server runtime, stream processing, middleware pipelines, and error handling.',
-      topics: ['Event Loop & Worker Threads', 'Stream Buffering', 'Express Routing Architecture'],
-    },
-    {
-      step: '02',
-      skill: 'JavaScript',
-      title: 'Advanced ECMAScript: Closures, Event Loop & Promises',
-      provider: 'MDN Web Docs',
-      duration: '6 hrs',
-      levelUpgrade: 'L3 → L4',
-      status: 'UP_NEXT',
-      priority: 'HIGH',
-      url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Closures',
-      description: 'Lexical scoping, prototype inheritance, macro vs microtask scheduling, and async pipelines.',
-      topics: ['Lexical Environments', 'Memory Lifecycle & GC', 'Microtask Queue Ordering'],
-    },
-    {
-      step: '03',
-      skill: 'React',
-      title: 'React 18 & Next.js: Hooks, Virtual DOM & State Architecture',
-      provider: 'freeCodeCamp',
-      duration: '18 hrs',
-      levelUpgrade: 'L2 → L3',
-      status: 'QUEUED',
-      priority: 'HIGH',
-      url: 'https://www.freecodecamp.org/news/tag/react/',
-      description: 'Component lifecycles, custom hook abstraction, useCallback/useMemo optimization, and Next.js App Router.',
-      topics: ['Concurrent Features', 'Context API vs Redux', 'Server Components vs Client Components'],
-    },
-    {
-      step: '04',
-      skill: 'SQL & Relational DBs',
-      title: 'Relational Database Design & Multi-Table Aggregations',
-      provider: 'SQLBolt',
-      duration: '5 hrs',
-      levelUpgrade: 'L2 → L3',
-      status: 'QUEUED',
-      priority: 'MEDIUM',
-      url: 'https://sqlbolt.com/',
-      description: 'Interactive query playground mastering multi-table INNER/LEFT/FULL OUTER JOINs, grouping, and subqueries.',
-      topics: ['Multi-Table JOIN Strategies', 'HAVING vs WHERE', 'ACID Transactions & Isolation'],
-    },
-    {
-      step: '05',
-      skill: 'Web Security & Auth',
-      title: 'Web Security Hygiene, OAuth 2.0 & Session Architecture',
-      provider: 'MDN Web Docs',
-      duration: '8 hrs',
-      levelUpgrade: 'L2 → L3',
-      status: 'QUEUED',
-      priority: 'MEDIUM',
-      url: 'https://developer.mozilla.org/en-US/docs/Web/Security',
-      description: 'CORS policies, Content Security Policy (CSP), JWT vs HTTP-only cookie trade-offs, and OWASP Top 10.',
-      topics: ['XSS & CSRF Prevention', 'Secure Cookie Attributes', 'Rate Limiting Implementation'],
-    },
-    {
-      step: '06',
-      skill: 'System Deployment',
-      title: 'Docker Containerization & CI/CD Pipeline Automation',
-      provider: 'Microsoft Learn',
-      duration: '10 hrs',
-      levelUpgrade: 'L1 → L2',
-      status: 'QUEUED',
-      priority: 'LOW',
-      url: 'https://learn.microsoft.com/en-us/training/modules/intro-to-docker-containers/',
-      description: 'Multi-stage Dockerfiles, image optimization, GitHub Actions CI workflows, and edge deployment.',
-      topics: ['Multi-Stage Docker Builds', 'Layer Caching', 'Automated GitHub Workflows'],
-    }
-  ];
+  // Dynamically synthesize role-specific, gap-driven personalized roadmap
+  const plan = useMemo(() => {
+    return generatePersonalizedRoadmap(
+      state.targetCareerSlug || 'full-stack-developer',
+      state.skills || [],
+      state.assessmentScore
+    );
+  }, [state.targetCareerSlug, state.skills, state.assessmentScore]);
 
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
 
   // Hydrate completed learning steps from localStorage and Supabase on mount
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('l2h_completed_learning_steps');
+      const stored = localStorage.getItem(`l2h_completed_learning_${state.targetCareerSlug || 'fs'}`);
       if (stored) {
         setCompletedSteps(JSON.parse(stored));
       }
@@ -149,7 +79,7 @@ export default function LearningRoadmapPage() {
     };
 
     loadRemote();
-  }, []);
+  }, [state.targetCareerSlug]);
 
   const toggleComplete = async (step: string) => {
     const next = completedSteps.includes(step)
@@ -158,7 +88,7 @@ export default function LearningRoadmapPage() {
 
     setCompletedSteps(next);
     try {
-      localStorage.setItem('l2h_completed_learning_steps', JSON.stringify(next));
+      localStorage.setItem(`l2h_completed_learning_${state.targetCareerSlug || 'fs'}`, JSON.stringify(next));
     } catch {
       // ignore
     }
@@ -167,7 +97,7 @@ export default function LearningRoadmapPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // Ensure learning path exists
+        const totalMod = Math.max(plan.totalModules, 1);
         const { data: pathRow } = await supabase
           .from('learning_paths')
           .upsert(
@@ -176,7 +106,7 @@ export default function LearningRoadmapPage() {
               target_role_id: '50000000-0000-0000-0000-000000000001',
               title: `${currentRole?.title || 'Full-Stack Developer'} Remediation Roadmap`,
               description: 'Personalized remediation modules for calibrated gaps',
-              progress_percent: Math.round((next.length / roadmapModules.length) * 100),
+              progress_percent: Math.round((next.length / totalMod) * 100),
               updated_at: new Date().toISOString(),
             },
             { onConflict: 'user_id,target_role_id' }
@@ -186,12 +116,13 @@ export default function LearningRoadmapPage() {
         const pathId = pathRow && pathRow[0]?.id;
         if (pathId) {
           const stepNum = parseInt(step, 10);
+          const targetMod = plan.modules.find((m) => m.step === step);
           await supabase.from('learning_path_items').upsert(
             {
               learning_path_id: pathId,
               sequence_order: stepNum,
               skill_id: '40000000-0000-0000-0000-000000000001',
-              topic: roadmapModules.find((m) => m.step === step)?.title || 'Roadmap Topic',
+              topic: targetMod?.title || 'Roadmap Topic',
               is_completed: next.includes(step),
               completed_at: next.includes(step) ? new Date().toISOString() : null,
             },
@@ -204,6 +135,56 @@ export default function LearningRoadmapPage() {
     }
   };
 
+  // Section 64: Honest Empty State for Unassessed Candidates
+  if (!plan.isAssessed) {
+    return (
+      <div className="space-y-8">
+        <div className="border-b-[1.5px] border-brand-ink pb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="editorial-badge bg-brand-rose text-white">
+              Personalized Curriculum
+            </span>
+            <span className="text-xs font-mono text-brand-ink/70 font-bold uppercase tracking-wider">
+              Target Role: {currentRole?.title || 'Full-Stack Developer'}
+            </span>
+          </div>
+          <h1 className="font-display text-4xl sm:text-5xl uppercase tracking-tight text-brand-ink">
+            Competency Remediation Roadmap
+          </h1>
+          <p className="text-base text-brand-ink/80 max-w-2xl mt-1">
+            Curated from your assessment evidence, skill gaps, target role, and learning progress.
+          </p>
+        </div>
+
+        <div className="bg-brand-paper border-[1.5px] border-brand-ink p-8 sm:p-12 shadow-editorial text-center space-y-6">
+          <div className="w-16 h-16 bg-brand-orange text-white rounded-none border border-brand-ink flex items-center justify-center mx-auto shadow-editorial-sm">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+
+          <div className="max-w-lg mx-auto space-y-2">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-brand-rose">
+              Assessment Required
+            </span>
+            <h2 className="font-display text-3xl uppercase text-brand-ink font-bold">
+              No Assessment Data Yet
+            </h2>
+            <p className="text-sm text-brand-ink/80 leading-relaxed font-medium">
+              Your personalized curriculum is constructed dynamically from empirical assessment evidence. Take your role diagnostic to benchmark your true capabilities and unlock your customized roadmap.
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <Link href={ROUTES.app.assessments.baseline}>
+              <Button variant="accent" size="lg">
+                Start Baseline Diagnostic Assessment →
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Editorial Header */}
@@ -215,14 +196,14 @@ export default function LearningRoadmapPage() {
                 Personalized Curriculum
               </span>
               <span className="text-xs font-mono text-brand-ink/70 font-bold uppercase tracking-wider">
-                Target Role: {currentRole?.title || 'Full-Stack Developer'}
+                Target Role: {plan.targetRoleTitle}
               </span>
             </div>
             <h1 className="font-display text-4xl sm:text-5xl uppercase tracking-tight text-brand-ink">
               Competency Remediation Roadmap
             </h1>
             <p className="text-base text-brand-ink/80 max-w-2xl mt-1">
-              Curated open learning modules ordered strictly by diagnostic skill gaps and priority weightings. Work through each milestone and practice code execution.
+              Curated from your assessment evidence, skill gaps, target role, and learning progress.
             </p>
           </div>
 
@@ -234,12 +215,14 @@ export default function LearningRoadmapPage() {
         </div>
       </div>
 
-      {/* Progress Telemetry Banner */}
+      {/* Progress Telemetry Banner (Dynamic values, not hardcoded!) */}
       <div className="bg-brand-paper border-[1.5px] border-brand-ink p-4 shadow-editorial flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Badge variant="yellow">{completedSteps.length} of {roadmapModules.length} Modules Completed</Badge>
+          <Badge variant="yellow">
+            {completedSteps.length} of {plan.totalModules} Modules Completed
+          </Badge>
           <span className="text-xs font-semibold text-brand-ink/70">
-            Estimated Curriculum Time: 61 Hours Total
+            Estimated Curriculum Time: {plan.estimatedTotalHours} Hours Total
           </span>
         </div>
 
@@ -252,14 +235,14 @@ export default function LearningRoadmapPage() {
 
       {/* Structured Sequential Roadmap */}
       <div className="space-y-6">
-        {roadmapModules.map((mod) => {
-          const isDone = completedSteps.includes(mod.step);
+        {plan.modules.map((mod: PersonalizedRoadmapModule) => {
+          const isDone = completedSteps.includes(mod.step) || mod.status === 'TARGET_MET';
 
           return (
             <div
               key={mod.step}
               className={`bg-brand-paper border-[1.5px] border-brand-ink p-6 shadow-editorial transition-all ${
-                isDone ? 'opacity-70 bg-brand-cream/60' : ''
+                isDone ? 'opacity-75 bg-brand-cream/60' : ''
               }`}
             >
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -284,12 +267,33 @@ export default function LearningRoadmapPage() {
                 {/* Module Details */}
                 <div className="lg:col-span-8 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={mod.priority === 'CRITICAL' ? 'rose' : 'yellow'}>
-                      {mod.priority} GAP
+                    <Badge
+                      variant={
+                        mod.priority === 'CRITICAL'
+                          ? 'rose'
+                          : mod.priority === 'TARGET_MET'
+                          ? 'paper'
+                          : 'yellow'
+                      }
+                    >
+                      {mod.priority === 'TARGET_MET' ? 'TARGET MET' : `${mod.priority} GAP`}
                     </Badge>
+
                     <span className="editorial-badge bg-brand-cream text-brand-ink text-[10px]">
-                      {mod.provider}
+                      {mod.primaryResource?.provider || 'Educational Standard'}
                     </span>
+
+                    {/* Honest Free vs Paid/Subscription Access Badge */}
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 border ${
+                        mod.primaryResource?.access === 'FREE'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-600'
+                          : 'bg-amber-50 text-amber-800 border-amber-600'
+                      }`}
+                    >
+                      {mod.primaryResource?.access || 'FREE'}
+                    </span>
+
                     <span className="text-xs font-bold text-brand-orange">
                       Target Upgrade: {mod.levelUpgrade}
                     </span>
@@ -313,24 +317,73 @@ export default function LearningRoadmapPage() {
                       </span>
                     ))}
                   </div>
+
+                  {/* Resource Recommendation Sub-Card */}
+                  {mod.resources && mod.resources.length > 0 && (
+                    <div className="pt-3 border-t border-brand-ink/10 mt-3 space-y-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-brand-ink/60 block">
+                        Recommended Verified Learning Resources:
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {mod.resources.slice(0, 2).map((res) => (
+                          <a
+                            key={res.id}
+                            href={res.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 border border-brand-ink/30 bg-brand-cream/40 hover:bg-white transition-all text-left block"
+                          >
+                            <div className="flex items-center justify-between gap-1 mb-1">
+                              <span className="text-[10px] font-bold text-brand-orange">
+                                {res.provider}
+                              </span>
+                              <span
+                                className={`text-[9px] font-bold px-1 py-0.2 border ${
+                                  res.isFree
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-500'
+                                    : 'bg-amber-50 text-amber-800 border-amber-500'
+                                }`}
+                              >
+                                {res.access}
+                              </span>
+                            </div>
+                            <p className="text-xs font-semibold text-brand-ink line-clamp-1">
+                              {res.title}
+                            </p>
+                            <span className="text-[10px] text-brand-ink/60 mt-1 block">
+                              {res.qualityWhy}
+                            </span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Direct Action Link */}
+                {/* Direct Action Link & Practice Button */}
                 <div className="lg:col-span-3 flex flex-col gap-2 items-start lg:items-end justify-between h-full pt-1">
                   <span className="text-xs font-semibold text-brand-ink/70 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" /> {mod.duration}
+                    <Clock className="w-3.5 h-3.5" /> {mod.estimatedHours} hrs
                   </span>
 
-                  <a
-                    href={mod.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full lg:w-auto"
-                  >
-                    <Button variant="primary" size="sm" fullWidth className="text-xs">
-                      Open Free Curriculum <ExternalLink className="ml-1 w-3.5 h-3.5 inline" />
-                    </Button>
-                  </a>
+                  <div className="space-y-2 w-full lg:w-auto">
+                    <a
+                      href={mod.primaryResource?.url || 'https://developer.mozilla.org'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full lg:w-auto block"
+                    >
+                      <Button variant="primary" size="sm" fullWidth className="text-xs">
+                        Open Free Curriculum <ExternalLink className="ml-1 w-3.5 h-3.5 inline" />
+                      </Button>
+                    </a>
+
+                    <Link href={mod.practiceChallengeUrl} className="w-full lg:w-auto block">
+                      <Button variant="outline" size="sm" fullWidth className="text-xs">
+                        <Code2 className="mr-1 w-3.5 h-3.5 inline" /> Practice Skill Lab
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>

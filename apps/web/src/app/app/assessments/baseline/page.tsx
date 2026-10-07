@@ -31,11 +31,11 @@ import { Badge } from '@/components/ui/badge';
 export default function BaselineAssessmentRunnerPage() {
   const router = useRouter();
   const { state, recordAssessmentCompletion } = useCandidateState();
-  const currentRole = getCareerBySlug(state.targetCareerSlug);
+  const roleSlug = state.targetCareerSlug || 'full-stack-developer';
+  const currentRole = getCareerBySlug(roleSlug);
 
   // Build dynamic blueprint and session dynamically for the current career role
   const testQuestions = useMemo(() => {
-    const roleSlug = state.targetCareerSlug || 'full-stack-developer';
     const blueprint = generateAssessmentBlueprint(roleSlug, 'BASELINE', 'MEDIUM');
     const existingHistory: UserHistoryRecord[] = (state.seenQuestionIds || []).map((id) => ({
       questionId: id,
@@ -47,12 +47,32 @@ export default function BaselineAssessmentRunnerPage() {
       timeTakenSeconds: 45,
     }));
     return buildAssessmentSession(blueprint, existingHistory);
-  }, [state.targetCareerSlug, state.seenQuestionIds]);
+  }, [roleSlug, state.seenQuestionIds]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
   const [timeRemaining, setTimeRemaining] = useState(1500); // 25 mins
+  const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Hydrate answers from sessionStorage to survive page refresh
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(`l2h_baseline_answers_${roleSlug}`);
+      if (stored) {
+        setSelectedAnswers(JSON.parse(stored));
+      }
+      const storedIdx = sessionStorage.getItem(`l2h_baseline_idx_${roleSlug}`);
+      if (storedIdx) {
+        const parsedIdx = parseInt(storedIdx, 10);
+        if (!isNaN(parsedIdx) && parsedIdx >= 0) {
+          setCurrentIndex(parsedIdx);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [roleSlug]);
 
   // Timer countdown
   useEffect(() => {
@@ -72,57 +92,106 @@ export default function BaselineAssessmentRunnerPage() {
   const totalQuestions = testQuestions.length;
 
   const handleSelectOption = (option: string) => {
-    setSelectedAnswers((prev) => ({
-      ...prev,
-      [currentQ.id]: option,
-    }));
+    if (isSaving || isSubmitting) return;
+
+    setSelectedAnswers((prev) => {
+      const next = {
+        ...prev,
+        [currentQ.id]: option,
+      };
+      try {
+        sessionStorage.setItem(`l2h_baseline_answers_${roleSlug}`, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    const currentAnswer = selectedAnswers[currentQ.id];
+    if (!currentAnswer || isSaving || isSubmitting) return;
+
+    setIsSaving(true);
+    // Explicit async persistence tick to ensure answer is written and prevent duplicate next
+    try {
+      sessionStorage.setItem(`l2h_baseline_answers_${roleSlug}`, JSON.stringify(selectedAnswers));
+      sessionStorage.setItem(`l2h_baseline_idx_${roleSlug}`, String(currentIndex + 1));
+    } catch {
+      // ignore
+    }
+
+    await new Promise((r) => setTimeout(r, 200));
+
     if (currentIndex < totalQuestions - 1) {
       setCurrentIndex((prev) => prev + 1);
     }
+    setIsSaving(false);
   };
 
   const handlePrev = () => {
+    if (isSaving || isSubmitting) return;
     if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1);
+      setCurrentIndex((prev) => {
+        const next = prev - 1;
+        try {
+          sessionStorage.setItem(`l2h_baseline_idx_${roleSlug}`, String(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
     }
   };
 
   const handleSubmitAssessment = async () => {
+    const currentAnswer = selectedAnswers[currentQ.id];
+    if (!currentAnswer || isSubmitting || isSaving) return;
+
     setIsSubmitting(true);
 
-    // Evaluate dynamically using the universal evaluation engine
-    const roleSlug = state.targetCareerSlug || 'full-stack-developer';
-    const evalResult = evaluateAssessmentSession(testQuestions, selectedAnswers, roleSlug);
+    try {
+      // Evaluate dynamically using the universal evaluation engine
+      const evalResult = evaluateAssessmentSession(testQuestions, selectedAnswers, roleSlug);
 
-    // Prepare seen questions for anti-repetition registry
-    const seenQuestionsPayload = testQuestions.map((q) => ({
-      questionId: q.id,
-      normalizedHash: q.normalizedHash,
-      questionFamily: q.questionFamily,
-      variantGroupId: q.variantGroupId,
-      correct: selectedAnswers[q.id] === q.correctAnswer,
-      score: selectedAnswers[q.id] === q.correctAnswer ? 100 : 0,
-    }));
+      // Prepare seen questions for anti-repetition registry
+      const seenQuestionsPayload = testQuestions.map((q) => ({
+        questionId: q.id,
+        normalizedHash: q.normalizedHash,
+        questionFamily: q.questionFamily,
+        variantGroupId: q.variantGroupId,
+        correct: selectedAnswers[q.id] === q.correctAnswer,
+        score: selectedAnswers[q.id] === q.correctAnswer ? 100 : 0,
+      }));
 
-    // Commit results to state store and Supabase persistence
-    await recordAssessmentCompletion(evalResult.score, {
-      questions: testQuestions.map((q) => ({ id: q.id, prompt: q.questionText || q.prompt || '' })),
-      answers: selectedAnswers,
-      calibratedSkills: evalResult.skillBreakdown.map((sb) => ({
-        skillName: sb.skillName,
-        calibratedLevel: sb.level,
-        score: sb.score,
-        confidence: 0.85,
-      })),
-      seenQuestions: seenQuestionsPayload,
-    });
+      // Commit results to state store and Supabase persistence
+      await recordAssessmentCompletion(evalResult.score, {
+        questions: testQuestions.map((q) => ({ id: q.id, prompt: q.questionText || q.prompt || '' })),
+        answers: selectedAnswers,
+        calibratedSkills: evalResult.skillBreakdown.map((sb) => ({
+          skillName: sb.skillName,
+          calibratedLevel: sb.level,
+          score: sb.score,
+          confidence: 0.85,
+        })),
+        seenQuestions: seenQuestionsPayload,
+      });
 
-    setTimeout(() => {
-      router.push(ROUTES.app.assessments.results('baseline'));
-    }, 400);
+      // Clear session persistence upon successful completion
+      try {
+        sessionStorage.removeItem(`l2h_baseline_answers_${roleSlug}`);
+        sessionStorage.removeItem(`l2h_baseline_idx_${roleSlug}`);
+      } catch {
+        // ignore
+      }
+
+      setTimeout(() => {
+        router.push(ROUTES.app.assessments.results('baseline'));
+      }, 400);
+    } catch (err) {
+      console.error('Failed to submit assessment:', err);
+      setIsSubmitting(false);
+    }
   };
 
   if (!currentQ) {
@@ -136,6 +205,7 @@ export default function BaselineAssessmentRunnerPage() {
   const isLastQuestion = currentIndex === totalQuestions - 1;
   const answeredCount = Object.keys(selectedAnswers).length;
   const currentAnswer = selectedAnswers[currentQ.id];
+  const hasAnsweredCurrent = Boolean(currentAnswer && currentAnswer.trim().length > 0);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -227,13 +297,13 @@ export default function BaselineAssessmentRunnerPage() {
           })}
         </div>
 
-        {/* Navigation Controls */}
+        {/* Navigation Controls: Strict Next/Submit Button State Machine */}
         <div className="pt-6 border-t border-brand-ink/20 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <Button
             variant="outline"
             size="md"
             onClick={handlePrev}
-            disabled={currentIndex === 0}
+            disabled={currentIndex === 0 || isSaving || isSubmitting}
             className="w-full sm:w-auto justify-center"
           >
             &larr; Previous
@@ -244,7 +314,7 @@ export default function BaselineAssessmentRunnerPage() {
               variant="accent"
               size="md"
               onClick={handleSubmitAssessment}
-              disabled={isSubmitting}
+              disabled={!hasAnsweredCurrent || isSubmitting || isSaving}
               className="w-full sm:w-auto justify-center"
             >
               {isSubmitting ? 'Evaluating Diagnostic...' : 'Submit Assessment \u2192'}
@@ -254,9 +324,10 @@ export default function BaselineAssessmentRunnerPage() {
               variant="primary"
               size="md"
               onClick={handleNext}
+              disabled={!hasAnsweredCurrent || isSaving || isSubmitting}
               className="w-full sm:w-auto justify-center"
             >
-              Next Question &rarr;
+              {isSaving ? 'Saving...' : 'Next Question \u2192'}
             </Button>
           )}
         </div>

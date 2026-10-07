@@ -1,32 +1,48 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
-import { BookOpen, ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react';
+import { BookOpen, ArrowLeft, ArrowRight, ExternalLink, RefreshCw } from 'lucide-react';
+import { useCandidateState } from '@/lib/data/state-store';
+import { getCareerBySlug } from '@/lib/data/careers-data';
+import { findResourcesForSkill } from '@/lib/curriculum';
 import { ROUTES } from '@/lib/routes';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 export default function ImproveRetrainingPage() {
-  const modules = [
-    {
-      skill: 'Node.js',
-      title: 'Deep Dive: Event Loop, Asynchronous Streams & Worker Threads',
-      provider: 'freeCodeCamp / Node.js Official Docs',
-      duration: '4 hours',
-      url: 'https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/',
-      desc: 'Remediates baseline assessment question 3 and Docker microservices requirements.'
-    },
-    {
-      skill: 'React',
-      title: 'State Reconciliation, Fiber Architecture & Custom Hooks',
-      provider: 'MDN Web Docs',
-      duration: '3 hours',
-      url: 'https://developer.mozilla.org/en-US/docs/Learn/Tools_and_testing/Client-side_JavaScript_frameworks/React_getting_started',
-      desc: 'Remediates stale closure bugs and unnecessary re-renderings.'
-    }
-  ];
+  const { state } = useCandidateState();
+  const currentRole = getCareerBySlug(state.targetCareerSlug);
+
+  // Derive active retraining modules dynamically from user's actual weak skills
+  const modules = useMemo(() => {
+    const weakSkills = (state.skills || []).filter((s) => s.gap > 0);
+    const targetSkills = weakSkills.length > 0
+      ? weakSkills
+      : (currentRole?.requiredSkills || []).slice(0, 3).map((s) => ({
+          name: s.name,
+          currentLevel: 'L1' as const,
+          requiredLevel: s.level,
+          gap: 2,
+        }));
+
+    return targetSkills.map((s) => {
+      const resources = findResourcesForSkill(s.name, s.requiredLevel);
+      const topResource = resources[0];
+
+      return {
+        skill: s.name,
+        title: topResource?.title || `${s.name} Core Architectural Remediation`,
+        provider: topResource?.provider || 'Official Documentation',
+        duration: topResource?.duration || '4 hours',
+        url: topResource?.url || 'https://developer.mozilla.org',
+        access: topResource?.access || 'FREE',
+        isFree: topResource?.isFree ?? true,
+        desc: `Remediates validated diagnostic deficit (${s.currentLevel || 'L0'} → ${s.requiredLevel}). Targeted curriculum to upgrade capabilities before interview rounds.`
+      };
+    });
+  }, [state.skills, currentRole]);
 
   return (
     <div className="space-y-8">
@@ -34,7 +50,9 @@ export default function ImproveRetrainingPage() {
         <Link href={ROUTES.app.improve.home} className="text-xs font-bold uppercase text-brand-ink flex items-center gap-1.5">
           <ArrowLeft className="w-4 h-4" /> Back to Improvement Hub
         </Link>
-        <span className="text-xs font-bold text-brand-orange uppercase">Active Retraining</span>
+        <span className="text-xs font-bold text-brand-orange uppercase">
+          {currentRole?.title || 'Target Role'} Active Retraining
+        </span>
       </div>
 
       <div className="border-b-[1.5px] border-brand-ink pb-6">
@@ -42,7 +60,7 @@ export default function ImproveRetrainingPage() {
           Targeted Retraining Modules
         </h1>
         <p className="text-base text-brand-ink/80 max-w-2xl mt-1">
-          Bespoke remediation curricula tailored to the exact failure concepts identified in diagnostics and interview rounds.
+          Bespoke remediation curricula tailored to the exact failure concepts identified in diagnostics and interview rounds for {currentRole?.title || 'your target role'}.
         </p>
       </div>
 
@@ -50,19 +68,28 @@ export default function ImproveRetrainingPage() {
         {modules.map((m) => (
           <div key={m.title} className="bg-brand-paper border-[1.5px] border-brand-ink p-6 shadow-editorial flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="rose">GAP REMEDIATION: {m.skill}</Badge>
                 <span className="editorial-badge bg-brand-cream text-brand-ink text-[10px]">{m.provider}</span>
+                <span
+                  className={`text-[9px] font-bold px-1.5 py-0.2 border ${
+                    m.isFree
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-500'
+                      : 'bg-amber-50 text-amber-800 border-amber-500'
+                  }`}
+                >
+                  {m.access}
+                </span>
                 <span className="text-xs text-brand-ink/60">{m.duration}</span>
               </div>
               <h3 className="font-display text-2xl font-bold uppercase text-brand-ink">{m.title}</h3>
-              <p className="text-xs text-brand-ink/80 font-medium max-w-2xl">{m.desc}</p>
+              <p className="text-xs text-brand-ink/80 font-medium max-w-2xl leading-relaxed">{m.desc}</p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2 shrink-0">
               <a href={m.url} target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" size="sm">
-                  Open Free Material <ExternalLink className="w-3.5 h-3.5 ml-1 inline" />
+                  Open Learning Portal <ExternalLink className="w-3.5 h-3.5 ml-1 inline" />
                 </Button>
               </a>
               <Link href={ROUTES.app.improve.reassessment}>

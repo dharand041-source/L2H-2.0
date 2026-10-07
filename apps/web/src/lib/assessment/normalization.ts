@@ -30,6 +30,8 @@ export function normalizeQuestionText(text: string): string {
     .trim();
 }
 
+export const cleanNormalizedText = normalizeQuestionText;
+
 /**
  * Computes a deterministic pseudo-SHA256 hex digest for any normalized string.
  * Uses a pure 32-bit bitwise mixing hash algorithm that works synchronously in all environments
