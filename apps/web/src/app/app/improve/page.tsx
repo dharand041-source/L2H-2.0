@@ -78,13 +78,21 @@ export default function ImproveHubPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-4 p-6 bg-brand-cream border border-brand-ink/30 space-y-2 text-xs font-mono">
-            <div className="font-bold text-brand-ink text-sm pb-1 border-b border-brand-ink/20">Loop Architecture:</div>
-            <div>&gt; OUTCOME (Rejection Feedback)</div>
-            <div>&gt; SKILL GAP EXTRACTION</div>
-            <div>&gt; TARGETED RETRAINING (FCC/MDN)</div>
-            <div>&gt; REASSESSMENT (Weak Areas)</div>
-            <div className="text-brand-orange font-bold">&gt; SKILL ANALYZER UPGRADED</div>
+          <div className="lg:col-span-4 p-5 bg-brand-cream border border-brand-ink/30 space-y-1.5 text-xs font-mono">
+            <div className="font-bold text-brand-ink text-sm pb-1.5 border-b border-brand-ink/20 flex items-center justify-between">
+              <span>CLOSED-LOOP ENGINE</span>
+              <span className="editorial-badge bg-brand-rose text-white text-[9px]">8 STEPS</span>
+            </div>
+            <div className="text-[11px] space-y-1 text-brand-ink/80 pt-1">
+              <div>1. APPLICATION (Direct Submission)</div>
+              <div>2. OUTCOME (Employer Decision)</div>
+              <div>3. SKILL GAP (Extracted Deficit)</div>
+              <div>4. TARGETED LEARNING (Open Curricula)</div>
+              <div>5. PRACTICE (Algorithmic Drills)</div>
+              <div>6. PROJECT (Milestone Deliverable)</div>
+              <div>7. REASSESSMENT (Diagnostic Proof)</div>
+              <div className="text-brand-orange font-bold">8. UPDATED READINESS (Calibrated)</div>
+            </div>
           </div>
         </div>
       </div>

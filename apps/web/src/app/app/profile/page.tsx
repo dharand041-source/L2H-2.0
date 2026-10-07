@@ -6,6 +6,7 @@ import { Camera, Upload, Trash2, CheckCircle2, User } from 'lucide-react';
 import { useCandidateState } from '@/lib/data/state-store';
 import { getCareerBySlug } from '@/lib/data/careers-data';
 import { ROUTES } from '@/lib/routes';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 
 export default function ProfilePage() {
@@ -96,7 +97,7 @@ export default function ProfilePage() {
     setTimeout(() => setSaved(false), 3000);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     updateState({
       user: {
         ...state.user,
@@ -105,6 +106,27 @@ export default function ProfilePage() {
         avatarUrl: avatarUrl || undefined,
       },
     });
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: user.id,
+              full_name: name,
+              headline: headline,
+              avatar_url: avatarUrl || null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'id' }
+          );
+      }
+    } catch (err) {
+      console.warn('Profile persistence error:', err);
+    }
+
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };

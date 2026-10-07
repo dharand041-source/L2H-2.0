@@ -126,21 +126,27 @@ export default function DashboardPage() {
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-ink/60">
                 Role Readiness
               </span>
-              <div className="font-display text-4xl font-bold text-brand-ink mt-1">
-                {state.readinessScore}%
+              <div className="font-display text-2xl sm:text-3xl font-bold text-brand-ink mt-1">
+                {state.assessmentScore !== undefined ? `${state.readinessScore}%` : 'NOT ASSESSED'}
               </div>
               <div className="text-xs font-semibold text-brand-ink/70 mt-0.5">
-                Calibrated Competency
+                {state.assessmentScore !== undefined ? 'Calibrated Competency' : 'Complete baseline assessment'}
               </div>
             </div>
-            <ProgressRing
-              progress={state.readinessScore}
-              size={64}
-              strokeWidth={6}
-              color="#EFB11D"
-              showValue={false}
-              centerIcon={<TrendingUp className="w-5 h-5 text-brand-yellow" />}
-            />
+            {state.assessmentScore !== undefined ? (
+              <ProgressRing
+                progress={state.readinessScore}
+                size={64}
+                strokeWidth={6}
+                color="#EFB11D"
+                showValue={false}
+                centerIcon={<TrendingUp className="w-5 h-5 text-brand-yellow" />}
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full border border-brand-ink/30 bg-brand-cream flex items-center justify-center">
+                <Target className="w-5 h-5 text-brand-orange" />
+              </div>
+            )}
           </div>
           <div className="mt-4 pt-3 border-t border-brand-ink/10 flex items-center justify-between">
             <Link href={ROUTES.app.skills.analysis} className="text-xs font-bold uppercase text-brand-orange hover:underline flex items-center gap-1">
@@ -164,7 +170,7 @@ export default function DashboardPage() {
                 : (state.activeProject?.title || 'Interactive Design System')}
             </div>
             <div className="text-xs font-semibold text-brand-ink/70 mt-1">
-              Milestone: <strong className="text-brand-rose">{state.activeProject?.milestoneCurrent || 2}</strong> / {state.activeProject?.milestoneTotal || 4} Completed
+              Milestone: <strong className="text-brand-rose">{state.activeProject?.milestoneCurrent ?? 0}</strong> / {state.activeProject?.milestoneTotal || 4} Completed
             </div>
           </div>
           <div className="mt-4 pt-3 border-t border-brand-ink/10 flex items-center justify-between">
@@ -263,10 +269,10 @@ export default function DashboardPage() {
 
             <div className="mt-5 pt-4 border-t border-brand-ink/10 flex items-center justify-between text-xs">
               <span className="text-brand-ink/70 font-semibold">
-                Baseline Assessment Score: <strong className="text-brand-ink">{state.assessmentScore !== undefined ? `${state.assessmentScore}%` : 'Not Taken (0%)'}</strong>
+                Baseline Assessment Score: <strong className="text-brand-ink">{state.assessmentScore !== undefined ? `${state.assessmentScore}%` : 'NOT ASSESSED'}</strong>
               </span>
               <Link href={ROUTES.app.assessments.baseline} className="font-bold text-brand-orange hover:underline">
-                {state.assessmentScore !== undefined ? 'Retake Diagnostic →' : 'Take Diagnostic (0% → Benchmark) →'}
+                {state.assessmentScore !== undefined ? 'Retake Diagnostic →' : 'Take Baseline Diagnostic →'}
               </Link>
             </div>
           </div>
@@ -337,41 +343,53 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-3">
-              {matchedJobs.map((job) => (
-                <div
-                  key={job.id}
-                  className="p-3.5 bg-brand-cream border border-brand-ink/30 hover:border-brand-ink transition-all"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-brand-ink/60">
-                        {job.companyName}
-                      </span>
-                      <h4 className="font-bold text-sm text-brand-ink line-clamp-1">
-                        {job.title}
-                      </h4>
-                      <div className="text-xs text-brand-ink/70 mt-1">
-                        {job.location} · {job.employmentType}
-                      </div>
-                    </div>
-                    <Badge variant="yellow" className="shrink-0">
-                      91% Match
-                    </Badge>
-                  </div>
+              {matchedJobs.map((job) => {
+                const activeSkills = new Set(
+                  state.skills.filter((s) => s.currentLevel !== 'L0').map((s) => s.name.toLowerCase().trim())
+                );
+                const matchedCount = job.requiredSkills.filter((s) =>
+                  activeSkills.has(s.toLowerCase().trim())
+                ).length;
+                const matchPct = state.assessmentScore !== undefined
+                  ? Math.round((matchedCount / Math.max(job.requiredSkills.length, 1)) * 100)
+                  : null;
 
-                  <div className="mt-3 pt-2.5 border-t border-brand-ink/10 flex items-center justify-between text-xs">
-                    <span className="text-[10px] text-brand-ink/60">
-                      {job.lastVerifiedAt}
-                    </span>
-                    <Link
-                      href={ROUTES.app.opportunities.detail(job.id)}
-                      className="font-bold text-brand-orange hover:underline flex items-center gap-1"
-                    >
-                      Check Eligibility <ChevronRight className="w-3.5 h-3.5" />
-                    </Link>
+                return (
+                  <div
+                    key={job.id}
+                    className="p-3.5 bg-brand-cream border border-brand-ink/30 hover:border-brand-ink transition-all"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-brand-ink/60">
+                          {job.companyName}
+                        </span>
+                        <h4 className="font-bold text-sm text-brand-ink line-clamp-1">
+                          {job.title}
+                        </h4>
+                        <div className="text-xs text-brand-ink/70 mt-1">
+                          {job.location} · {job.employmentType}
+                        </div>
+                      </div>
+                      <Badge variant="yellow" className="shrink-0">
+                        {matchPct !== null ? `${matchPct}% Match` : 'Baseline Needed'}
+                      </Badge>
+                    </div>
+
+                    <div className="mt-3 pt-2.5 border-t border-brand-ink/10 flex items-center justify-between text-xs">
+                      <span className="text-[10px] text-brand-ink/60">
+                        {job.lastVerifiedAt}
+                      </span>
+                      <Link
+                        href={ROUTES.app.opportunities.detail(job.id)}
+                        className="font-bold text-brand-orange hover:underline flex items-center gap-1"
+                      >
+                        Check Eligibility <ChevronRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -389,20 +407,34 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-2.5">
-              {state.applications.map((app) => (
-                <div
-                  key={app.id}
-                  className="p-3 bg-brand-cream border border-brand-ink/30 flex items-center justify-between text-xs"
-                >
-                  <div>
-                    <div className="font-bold text-brand-ink">{app.title}</div>
-                    <div className="text-[10px] text-brand-ink/70">{app.company} · Applied: {app.appliedDate}</div>
-                  </div>
-                  <Badge variant={app.status === 'APPLIED' ? 'default' : 'yellow'}>
-                    {app.status}
-                  </Badge>
+              {state.applications.length === 0 ? (
+                <div className="p-4 bg-brand-cream border border-brand-ink/20 text-center space-y-2">
+                  <span className="text-xs font-bold text-brand-ink/70 block">No Active Applications Yet</span>
+                  <p className="text-[11px] text-brand-ink/60">
+                    Apply directly to verified listings to track progress in your Kanban pipeline.
+                  </p>
+                  <Link href={ROUTES.app.opportunities.jobs}>
+                    <Button variant="primary" size="sm" className="text-xs mt-1">
+                      Explore Matched Jobs &rarr;
+                    </Button>
+                  </Link>
                 </div>
-              ))}
+              ) : (
+                state.applications.map((app) => (
+                  <div
+                    key={app.id}
+                    className="p-3 bg-brand-cream border border-brand-ink/30 flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <div className="font-bold text-brand-ink">{app.title}</div>
+                      <div className="text-[10px] text-brand-ink/70">{app.company} · Applied: {app.appliedDate}</div>
+                    </div>
+                    <Badge variant={app.status === 'APPLIED' ? 'default' : 'yellow'}>
+                      {app.status}
+                    </Badge>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

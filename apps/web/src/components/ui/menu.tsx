@@ -33,24 +33,22 @@ export interface UserProfileSidebarProps {
 }
 
 export const sidebarVariants = {
-  hidden: { opacity: 0 },
+  hidden: { opacity: 1 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.08,
+      duration: 0.15,
     },
   },
 };
 
 export const itemVariants = {
-  hidden: { opacity: 0, x: -20 },
+  hidden: { opacity: 1, x: 0 },
   visible: {
     opacity: 1,
     x: 0,
     transition: {
-      type: 'spring',
-      stiffness: 100,
-      damping: 15,
+      duration: 0.15,
     },
   },
 };
@@ -71,17 +69,23 @@ export const UserProfileSidebar = React.forwardRef<HTMLDivElement, UserProfileSi
       >
         {/* User Info Header */}
         <motion.div variants={itemVariants} className="flex items-center justify-between p-1.5 shrink-0 gap-2">
-          <div className="flex items-center space-x-3.5 min-w-0">
-            <img
-              src={user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
-              alt={`${user.name}'s avatar`}
-              className="h-11 w-11 rounded-full object-cover shrink-0 border border-brand-ink shadow-editorial-sm bg-brand-paper"
-            />
+            {user.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={`${user.name}'s avatar`}
+                className="h-11 w-11 rounded-full object-cover shrink-0 border border-brand-ink shadow-editorial-sm bg-brand-paper"
+              />
+            ) : (
+              <div className="h-11 w-11 rounded-full bg-brand-orange border border-brand-ink shadow-editorial-sm text-white font-display flex items-center justify-center text-base shrink-0">
+                {user.name ? user.name.charAt(0).toUpperCase() : 'C'}
+              </div>
+            )}
             <div className="flex flex-col truncate">
               <span className="font-bold text-base text-brand-ink truncate leading-tight tracking-tight">{user.name}</span>
-              <span className="text-xs font-semibold text-brand-ink/60 truncate leading-normal">{user.email}</span>
+              {user.email && (
+                <span className="text-xs font-semibold text-brand-ink/60 truncate leading-normal">{user.email}</span>
+              )}
             </div>
-          </div>
           {onClose && (
             <button
               type="button"
@@ -135,6 +139,7 @@ export const UserProfileSidebar = React.forwardRef<HTMLDivElement, UserProfileSi
                     <Link
                       href={item.href}
                       onClick={handleLinkClick}
+                      aria-current={item.isActive ? 'page' : undefined}
                       className={cn(
                         'group flex items-center rounded-lg px-3 py-2 text-xs uppercase tracking-wider transition-all',
                         activeClasses
@@ -148,6 +153,7 @@ export const UserProfileSidebar = React.forwardRef<HTMLDivElement, UserProfileSi
                     href={item.href}
                     variants={itemVariants}
                     onClick={handleLinkClick}
+                    aria-current={item.isActive ? 'page' : undefined}
                     className={cn(
                       'group flex items-center rounded-lg px-3 py-2 text-xs uppercase tracking-wider transition-all',
                       activeClasses

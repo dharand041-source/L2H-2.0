@@ -98,13 +98,17 @@ export default function ResumeHubPage() {
             </div>
 
             <h2 className="font-display text-3xl font-bold uppercase text-brand-ink">
-              Readiness Status: <span className="text-brand-orange">{state.resume.status.replace(/_/g, ' ')}</span>
+              {state.resume.status === 'READY' ? (
+                <>Readiness Status: <span className="text-brand-orange">READY</span></>
+              ) : (
+                <span className="text-brand-rose">RESUME NOT READY</span>
+              )}
             </h2>
 
             <p className="text-sm text-brand-ink/85 font-medium leading-relaxed max-w-2xl">
               {state.resume.status === 'READY'
                 ? 'Your primary resume has satisfied core keyword coverage, auditable project deliverables, and ATS compatibility benchmarks. Direct job applications are now unlocked.'
-                : 'Direct employer applications require a verified resume. Optimize your missing keywords and verified evidence to unlock one-click applications.'}
+                : 'Complete your profile and add your verified evidence to satisfy the ATS compatibility gate.'}
             </p>
 
             <div className="pt-2 flex flex-wrap gap-3">

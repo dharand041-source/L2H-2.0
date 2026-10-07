@@ -17,23 +17,68 @@ function SignUpForm() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isEmailSubmitting, setIsEmailSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const isBusy = isEmailSubmitting || isGoogleSubmitting;
   const [error, setError] = useState<string | null>(urlError || null);
   const [message, setMessage] = useState<string | null>(urlMessage || null);
 
+  React.useEffect(() => {
+    let isMounted = true;
+    async function checkExistingAuth() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (isMounted && user) {
+          router.replace(ROUTES.app.dashboard);
+        }
+      } catch {}
+    }
+    checkExistingAuth();
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     setError(null);
     setMessage(null);
 
+    // Validation
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedName) {
+      setError('Please provide your full name.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      setError('Please provide a valid email address.');
+      return;
+    }
+
+    if (!password || password.length < 6) {
+      setError('Password must be at least 6 characters in length.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match. Please verify your confirm password.');
+      return;
+    }
+
+    setIsEmailSubmitting(true);
+
     try {
       const { data, error: authError } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: trimmedEmail,
         password,
         options: {
           data: {
-            full_name: name.trim(),
+            full_name: trimmedName,
           },
           emailRedirectTo: `${window.location.origin}/auth/callback?mode=signup&next=/onboarding`,
         },
@@ -41,7 +86,7 @@ function SignUpForm() {
 
       if (authError) {
         setError(authError.message);
-        setIsSubmitting(false);
+        setIsEmailSubmitting(false);
         return;
       }
 
@@ -49,17 +94,17 @@ function SignUpForm() {
         router.push(ROUTES.onboarding);
       } else if (data.user && !data.session) {
         setMessage('Registration successful! Please check your email to confirm your account before logging in.');
-        setIsSubmitting(false);
+        setIsEmailSubmitting(false);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'An unexpected registration error occurred.';
       setError(msg);
-      setIsSubmitting(false);
+      setIsEmailSubmitting(false);
     }
   };
 
   const handleGoogleSignUp = async () => {
-    setIsSubmitting(true);
+    setIsGoogleSubmitting(true);
     setError(null);
     setMessage(null);
 
@@ -77,12 +122,12 @@ function SignUpForm() {
 
       if (oauthError) {
         setError(oauthError.message);
-        setIsSubmitting(false);
+        setIsGoogleSubmitting(false);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'An unexpected error occurred during Google registration.';
       setError(msg);
-      setIsSubmitting(false);
+      setIsGoogleSubmitting(false);
     }
   };
 
@@ -90,13 +135,13 @@ function SignUpForm() {
     <div className="bg-brand-paper border-[1.5px] border-brand-ink p-8 shadow-editorial space-y-6">
       <div className="space-y-1">
         <span className="editorial-badge bg-brand-yellow text-brand-ink text-[10px]">
-          New Candidate Registration
+          CANDIDATE REGISTRATION
         </span>
         <h1 className="font-display text-3xl font-bold uppercase tracking-tight text-brand-ink">
-          Create Your Account
+          CREATE YOUR ACCOUNT
         </h1>
         <p className="text-xs text-brand-ink/70 font-medium">
-          Start by selecting your target occupation and taking your calibrated baseline diagnostic.
+          Build your career profile, measure your skills, and start your journey.
         </p>
       </div>
 
@@ -117,7 +162,7 @@ function SignUpForm() {
       <button
         type="button"
         onClick={handleGoogleSignUp}
-        disabled={isSubmitting}
+        disabled={isBusy}
         className="w-full p-3 bg-white border-[1.5px] border-brand-ink shadow-editorial hover:shadow-editorial-hover transition-all flex items-center justify-center gap-3 font-bold uppercase text-xs text-brand-ink disabled:opacity-50"
       >
         <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -138,7 +183,7 @@ function SignUpForm() {
             d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
           />
         </svg>
-        <span>{isSubmitting ? 'Connecting...' : 'Continue with Google'}</span>
+        <span>{isGoogleSubmitting ? 'CONTINUING WITH GOOGLE...' : 'CONTINUE WITH GOOGLE'}</span>
       </button>
 
       <div className="flex items-center gap-3 my-2">
@@ -152,7 +197,7 @@ function SignUpForm() {
       <form onSubmit={handleSignUp} className="space-y-4">
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-brand-ink/70 mb-1">
-            Full Name
+            FULL NAME
           </label>
           <input
             type="text"
@@ -166,7 +211,7 @@ function SignUpForm() {
 
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-brand-ink/70 mb-1">
-            Email Address
+            EMAIL ADDRESS
           </label>
           <input
             type="email"
@@ -180,7 +225,7 @@ function SignUpForm() {
 
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-brand-ink/70 mb-1">
-            Password
+            PASSWORD
           </label>
           <input
             type="password"
@@ -192,15 +237,29 @@ function SignUpForm() {
           />
         </div>
 
-        <Button variant="primary" size="md" fullWidth disabled={isSubmitting} type="submit">
-          {isSubmitting ? 'Creating Account...' : 'Continue to Onboarding →'}
+        <div>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-brand-ink/70 mb-1">
+            CONFIRM PASSWORD
+          </label>
+          <input
+            type="password"
+            required
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="••••••••••••"
+            className="w-full p-2.5 bg-brand-cream border border-brand-ink text-xs font-mono text-brand-ink focus:outline-none"
+          />
+        </div>
+
+        <Button variant="primary" size="md" fullWidth disabled={isBusy} type="submit">
+          {isEmailSubmitting ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT →'}
         </Button>
       </form>
 
       <div className="pt-4 border-t border-brand-ink/10 text-center text-xs text-brand-ink/70">
         Already have an account?{' '}
         <Link href={ROUTES.auth.login} className="font-bold text-brand-orange hover:underline">
-          Sign In
+          SIGN IN
         </Link>
       </div>
     </div>

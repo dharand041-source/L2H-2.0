@@ -27,6 +27,8 @@ import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Metric } from '../components/ui/metric';
 import { ProgressRing } from '../components/ui/progress-ring';
+import { supabase } from '@/lib/supabase';
+import { ROUTES } from '@/lib/routes';
 
 interface LoopStage {
   step: string;
@@ -41,6 +43,33 @@ interface LoopStage {
 
 export default function HomePage() {
   const [activeLoopIndex, setActiveLoopIndex] = useState(0);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    async function checkAuth() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (isMounted) {
+          setIsAuthenticated(Boolean(user));
+        }
+      } catch {}
+    }
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (isMounted) {
+        setIsAuthenticated(Boolean(session?.user));
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const journeyHref = isAuthenticated ? ROUTES.app.dashboard : ROUTES.auth.login;
 
   const loopStages: LoopStage[] = [
     {
@@ -249,9 +278,9 @@ export default function HomePage() {
                   </p>
                 </div>
                 <div className="lg:col-span-4 flex flex-col sm:flex-row lg:flex-col gap-3">
-                  <Link href="/auth/signup" className="w-full">
+                  <Link href={journeyHref} className="w-full">
                     <Button variant="primary" size="lg" fullWidth className="text-base">
-                      Start Your Journey <ArrowRight className="ml-2 w-5 h-5 inline" />
+                      {isAuthenticated ? 'Go to Dashboard' : 'Start Your Journey'} <ArrowRight className="ml-2 w-5 h-5 inline" />
                     </Button>
                   </Link>
                   <Link href="/careers" className="w-full">
@@ -619,9 +648,9 @@ export default function HomePage() {
               Stop submitting blind resumes to ATS black holes. Measure your competency gaps today, build tangible verified proofs, and unlock direct matched employment.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 w-full justify-center max-w-md">
-              <Link href="/auth/signup" className="w-full">
+              <Link href={journeyHref} className="w-full">
                 <Button variant="primary" size="lg" fullWidth>
-                  Create Free Account
+                  {isAuthenticated ? 'Go to Dashboard' : 'Start Your Journey'}
                 </Button>
               </Link>
               <Link href="/how-it-works" className="w-full">

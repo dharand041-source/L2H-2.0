@@ -19,23 +19,46 @@ const SidebarContext = createContext<SidebarContextType>({
 const STORAGE_KEY = 'l2h_sidebar_visible';
 
 export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isOpen, setIsOpen] = useState<boolean>(true);
+  // Mobile defaults to false to prevent initial flash on load; Desktop initializes to preference
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(true);
 
-  // Initialize from localStorage or screen size on client
+  // Initialize from screen size and localStorage on client
   useEffect(() => {
     try {
-      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-        // Mobile / tablet default to closed
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (mobile) {
         setIsOpen(false);
-        return;
-      }
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored !== null) {
-        setIsOpen(stored === 'true');
+      } else {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        setIsOpen(stored !== null ? stored === 'true' : true);
       }
     } catch {
       // Ignore storage errors
     }
+
+    const handleResize = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile((prev) => {
+        if (prev !== mobile) {
+          if (!mobile) {
+            try {
+              const stored = localStorage.getItem(STORAGE_KEY);
+              setIsOpen(stored !== null ? stored === 'true' : true);
+            } catch {
+              setIsOpen(true);
+            }
+          } else {
+            setIsOpen(false);
+          }
+        }
+        return mobile;
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const toggle = React.useCallback(() => {

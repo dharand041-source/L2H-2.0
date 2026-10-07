@@ -5,14 +5,33 @@ import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, Mail } from 'lucide-react';
 import { ROUTES } from '@/lib/routes';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/lib/supabase';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSent(true);
+    if (!email.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      const redirectUrl = typeof window !== 'undefined'
+        ? `${window.location.origin}/auth/reset-password`
+        : undefined;
+
+      await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: redirectUrl,
+      });
+    } catch (err) {
+      // Do not expose whether an arbitrary email exists
+      console.warn('Password reset request error:', err);
+    } finally {
+      setIsSubmitting(false);
+      setSent(true);
+    }
   };
 
   return (
@@ -37,10 +56,10 @@ export default function ForgotPasswordPage() {
 
           {sent ? (
             <div className="p-4 bg-brand-cream border border-brand-orange text-xs text-brand-ink font-medium space-y-2">
-              <div className="flex items-center gap-2 font-bold text-brand-orange">
-                <CheckCircle2 className="w-4 h-4" /> Recovery Link Sent
+              <div className="flex items-center gap-2 font-bold text-brand-orange uppercase">
+                <CheckCircle2 className="w-4 h-4" /> PASSWORD RESET EMAIL SENT
               </div>
-              <p>Check your email inbox for password reset instructions.</p>
+              <p>Check your email for instructions.</p>
               <Link href={ROUTES.auth.login}>
                 <Button variant="outline" size="sm" fullWidth className="mt-2">
                   Return to Sign In
@@ -63,8 +82,8 @@ export default function ForgotPasswordPage() {
                 />
               </div>
 
-              <Button variant="primary" size="md" fullWidth type="submit">
-                Send Reset Link →
+              <Button variant="primary" size="md" fullWidth disabled={isSubmitting} type="submit">
+                {isSubmitting ? 'Sending Instructions...' : 'Send Reset Link →'}
               </Button>
             </form>
           )}

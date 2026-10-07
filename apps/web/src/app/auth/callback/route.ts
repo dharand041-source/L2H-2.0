@@ -79,41 +79,8 @@ export async function GET(request: Request) {
           console.warn('Profile select warning:', profileSelectError.message);
         }
 
-        // Determine if account is an existing registered user
-        // An account is existing if a profile exists OR user was created in auth prior to this handshake
-        const accountAgeMs = Date.now() - new Date(user.created_at).getTime();
-        const hasExistingAccount = !!existingProfile || accountAgeMs > 90000;
-
         // =========================================================================
-        // CONDITION 1: SIGN IN MODE (from /auth/login)
-        // "if the user dont have signup they must signup"
-        // If user does not have an account, block signin and require them to signup!
-        // =========================================================================
-        if (mode === 'signin' && !hasExistingAccount) {
-          await supabase.auth.signOut();
-          return NextResponse.redirect(
-            createRedirectUrl(origin, '/auth/signup', {
-              error: 'No registered account found with this Google email. You must sign up first before signing in.',
-            })
-          );
-        }
-
-        // =========================================================================
-        // CONDITION 2: SIGN UP MODE (from /auth/signup)
-        // "and the user signin they already have the signup account set the condition"
-        // If user ALREADY has an account, redirect them to sign in!
-        // =========================================================================
-        if (mode === 'signup' && hasExistingAccount) {
-          await supabase.auth.signOut();
-          return NextResponse.redirect(
-            createRedirectUrl(origin, '/auth/login', {
-              message: 'An account already exists with this Google email. Please sign in to your account.',
-            })
-          );
-        }
-
-        // =========================================================================
-        // NEW SIGN UP: Create profile in public.profiles
+        // PROFILE INITIALIZATION & PERSISTENCE
         // =========================================================================
         if (!existingProfile) {
           const fullName =
@@ -127,7 +94,7 @@ export async function GET(request: Request) {
             user.user_metadata?.picture ||
             null;
 
-          await supabase.from('profiles').upsert(
+          const { error: insertError } = await supabase.from('profiles').upsert(
             {
               id: user.id,
               full_name: fullName,
@@ -139,6 +106,10 @@ export async function GET(request: Request) {
             },
             { onConflict: 'id' }
           );
+
+          if (insertError) {
+            console.warn('Profile initialization upsert notice:', insertError.message);
+          }
         }
 
         // Determine destination:
@@ -147,16 +118,16 @@ export async function GET(request: Request) {
           return NextResponse.redirect(createRedirectUrl(origin, next));
         }
 
-        // 2. Brand new signups or uncalibrated candidates go to onboarding
-        if (mode === 'signup' || !existingProfile?.target_role_id) {
+        // 2. Explicit sign-up mode for new candidate without target role goes to onboarding
+        if (mode === 'signup' && !existingProfile?.target_role_id) {
           return NextResponse.redirect(createRedirectUrl(origin, '/onboarding'));
         }
 
-        // 3. Returning candidate with target role goes to dashboard
-        return NextResponse.redirect(createRedirectUrl(origin, '/app/dashboard'));
+        // 3. Post-authentication destination returns user to home page / as per architecture specification
+        return NextResponse.redirect(createRedirectUrl(origin, '/'));
       } catch (profileErr) {
         console.error('Profile verification or creation error:', profileErr);
-        return NextResponse.redirect(createRedirectUrl(origin, '/app/dashboard'));
+        return NextResponse.redirect(createRedirectUrl(origin, '/'));
       }
     }
   }

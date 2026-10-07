@@ -18,6 +18,7 @@ import {
 import { useCandidateState } from '@/lib/data/state-store';
 import { getCareerBySlug } from '@/lib/data/careers-data';
 import { ROUTES } from '@/lib/routes';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -55,8 +56,43 @@ export default function MockInterviewSimulationPage() {
 
   const currentQuestion = mockQuestions[currentQIndex];
 
-  const handleEvaluateAnswer = () => {
+  const handleEvaluateAnswer = async () => {
     setIsEvaluating(true);
+
+    const overallScore = 87;
+    const strengths = ['Clear terminology', 'Covered libuv abstraction', 'Proposed distributed architecture'];
+    const growthAreas = ['Could elaborate slightly more on memory footprint trade-offs'];
+    const feedbackText = 'Excellent articulation of event-driven non-blocking I/O. Accurately highlighted the risk of blocking the main thread and properly suggested offloading CPU computation to worker threads or background message queues.';
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: sessionRows } = await supabase.from('interview_sessions').insert({
+          user_id: user.id,
+          target_role_id: '50000000-0000-0000-0000-000000000001',
+          session_type: 'TECHNICAL',
+          level: 'L3',
+          status: 'COMPLETED',
+          completed_at: new Date().toISOString(),
+        }).select();
+
+        if (sessionRows && sessionRows[0]?.id) {
+          await supabase.from('interview_feedback').insert({
+            session_id: sessionRows[0].id,
+            technical_correctness_score: 88,
+            communication_score: 84,
+            problem_solving_score: 90,
+            structural_clarity_score: 86,
+            overall_score: overallScore,
+            strengths,
+            areas_for_improvement: growthAreas,
+            detailed_report: feedbackText,
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Persist interview feedback note:', err);
+    }
 
     setTimeout(() => {
       setIsEvaluating(false);
@@ -64,18 +100,17 @@ export default function MockInterviewSimulationPage() {
         technicalAccuracy: 88,
         communicationScore: 84,
         tradeoffReasoning: 90,
-        overallScore: 87,
-        feedback: 'Excellent articulation of event-driven non-blocking I/O. Accurately highlighted the risk of blocking the main thread and properly suggested offloading CPU computation to worker threads or background message queues.',
-        strengths: ['Clear terminology', 'Covered libuv abstraction', 'Proposed distributed architecture'],
-        growthAreas: ['Could elaborate slightly more on memory footprint trade-offs']
+        overallScore,
+        feedback: feedbackText,
+        strengths,
+        growthAreas,
       });
 
       // Update candidate state
       updateState((prev) => ({
         ...prev,
-        interviewScore: 87,
+        interviewScore: overallScore,
         stage: 'RESUME_READY',
-        readinessScore: Math.min(prev.readinessScore + 8, 98),
       }));
     }, 1200);
   };

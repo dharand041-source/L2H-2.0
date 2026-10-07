@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { FolderGit2, ArrowLeft, CheckCircle2, ShieldCheck, Award } from 'lucide-react';
 import { useCandidateState } from '@/lib/data/state-store';
 import { ROUTES } from '@/lib/routes';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,16 +17,36 @@ export default function ProjectSubmitPage() {
   const id = params?.id as string;
   const { state, updateState } = useCandidateState();
 
-  const [githubUrl, setGithubUrl] = useState('https://github.com/alexmercer/event-booking-service');
-  const [liveUrl, setLiveUrl] = useState('https://event-booking-demo.vercel.app');
+  const [githubUrl, setGithubUrl] = useState(state.activeProject?.githubUrl || '');
+  const [liveUrl, setLiveUrl] = useState('');
   const [techStack, setTechStack] = useState('Node.js, Express, PostgreSQL, Redis, Docker, Jest');
   const [notes, setNotes] = useState('Implemented ACID transaction seat reservations with Redis distributed locks.');
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsEvaluating(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('project_submissions').upsert(
+          {
+            user_id: user.id,
+            project_id: '70000000-0000-0000-0000-000000000001',
+            github_url: githubUrl,
+            live_deployment_url: liveUrl || null,
+            explanation_notes: notes,
+            status: 'EVALUATED',
+            submitted_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,project_id' }
+        );
+      }
+    } catch (err) {
+      console.warn('Persist project submission note:', err);
+    }
 
     setTimeout(() => {
       setIsEvaluating(false);
@@ -37,10 +58,10 @@ export default function ProjectSubmitPage() {
         activeProject: {
           ...prev.activeProject,
           isCompleted: true,
+          milestoneCurrent: prev.activeProject?.milestoneTotal || 4,
           rubricScore: 94,
           githubUrl,
         },
-        readinessScore: Math.min(prev.readinessScore + 12, 98),
       }));
     }, 1200);
   };

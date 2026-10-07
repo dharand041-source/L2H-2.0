@@ -77,38 +77,56 @@ export default function SkillProofHubPage() {
         <div className="flex items-center justify-between pb-3 border-b border-brand-ink/20">
           <div>
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-ink/60 block">
-              Passport Holder: {state.user.name}
+              Passport Holder: {state.user.name || 'Candidate'}
             </span>
             <h2 className="font-display text-2xl font-bold uppercase text-brand-ink">
               Auditable Competency Ledger
             </h2>
           </div>
-          <Badge variant="yellow">5 Active Verifications</Badge>
+          <Badge variant={state.skills.filter((s) => s.currentLevel !== 'L0').length > 0 ? 'yellow' : 'rose'}>
+            {state.skills.filter((s) => s.currentLevel !== 'L0').length} Verified Skills
+          </Badge>
         </div>
 
         <div className="space-y-3">
-          {state.skills.map((skill) => (
-            <div
-              key={skill.name}
-              className="p-4 bg-brand-cream border border-brand-ink/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-sm text-brand-ink">{skill.name}</span>
-                  <Badge variant="yellow">{skill.currentLevel}</Badge>
-                </div>
-                <div className="text-xs text-brand-ink/70 mt-1">
-                  Evidence: {skill.evidenceCount} verified submissions &bull; Confidence: {Math.round(skill.confidence * 100)}%
-                </div>
-              </div>
+          {state.skills.map((skill) => {
+            const isVerified = skill.currentLevel !== 'L0' && (skill.evidenceCount > 0 || (state.assessmentScore !== undefined && state.assessmentScore > 0));
 
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-brand-orange flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4" /> Cryptographically Valid
-                </span>
+            return (
+              <div
+                key={skill.name}
+                className="p-4 bg-brand-cream border border-brand-ink/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-brand-ink">{skill.name}</span>
+                    <Badge variant={isVerified ? 'yellow' : 'default'}>{skill.currentLevel}</Badge>
+                  </div>
+                  <div className="text-xs text-brand-ink/70 mt-1">
+                    {isVerified ? (
+                      <>Evidence: {skill.evidenceCount || 1} verified assessment artifact &bull; Confidence: {Math.round((skill.confidence || 0.8) * 100)}%</>
+                    ) : (
+                      <>Evidence: Pending baseline diagnostic assessment &bull; Benchmark: {skill.requiredLevel}</>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {isVerified ? (
+                    <span className="text-xs font-bold text-green-700 flex items-center gap-1">
+                      <CheckCircle2 className="w-4 h-4 text-green-700" /> Assessment Verified
+                    </span>
+                  ) : (
+                    <Link href={ROUTES.app.assessments.baseline}>
+                      <Button variant="outline" size="sm" className="text-xs">
+                        Benchmark Skill &rarr;
+                      </Button>
+                    </Link>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

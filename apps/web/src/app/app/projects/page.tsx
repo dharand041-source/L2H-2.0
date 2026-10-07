@@ -94,7 +94,7 @@ export default function ProjectsHubPage() {
             <div className="flex items-center gap-2">
               <Badge variant="yellow">Active Project in Progress</Badge>
               <span className="text-xs font-bold text-brand-ink/60 uppercase">
-                Milestone {state.activeProject?.milestoneCurrent || 2} of {state.activeProject?.milestoneTotal || 4}
+                Milestone {state.activeProject?.milestoneCurrent ?? 0} of {state.activeProject?.milestoneTotal || 4}
               </span>
             </div>
             <h2 className="font-display text-3xl font-bold uppercase text-brand-ink">

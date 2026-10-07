@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   MapPin,
@@ -17,6 +17,7 @@ import { useCandidateState } from '@/lib/data/state-store';
 import { getCareerBySlug } from '@/lib/data/careers-data';
 import { CURATED_LEARNING_RESOURCES } from '@/lib/data/learning-data';
 import { ROUTES } from '@/lib/routes';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -108,10 +109,99 @@ export default function LearningRoadmapPage() {
 
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
 
-  const toggleComplete = (step: string) => {
-    setCompletedSteps((prev) =>
-      prev.includes(step) ? prev.filter((s) => s !== step) : [...prev, step]
-    );
+  // Hydrate completed learning steps from localStorage and Supabase on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('l2h_completed_learning_steps');
+      if (stored) {
+        setCompletedSteps(JSON.parse(stored));
+      }
+    } catch {
+      // ignore
+    }
+
+    const loadRemote = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: paths } = await supabase
+            .from('learning_paths')
+            .select('id')
+            .eq('user_id', user.id)
+            .limit(1);
+
+          if (paths && paths.length > 0) {
+            const { data: items } = await supabase
+              .from('learning_path_items')
+              .select('sequence_order, is_completed')
+              .eq('learning_path_id', paths[0].id)
+              .eq('is_completed', true);
+
+            if (items && items.length > 0) {
+              const remoteSteps = items.map((i) => String(i.sequence_order).padStart(2, '0'));
+              setCompletedSteps((prev) => Array.from(new Set([...prev, ...remoteSteps])));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Load remote learning progress note:', err);
+      }
+    };
+
+    loadRemote();
+  }, []);
+
+  const toggleComplete = async (step: string) => {
+    const next = completedSteps.includes(step)
+      ? completedSteps.filter((s) => s !== step)
+      : [...completedSteps, step];
+
+    setCompletedSteps(next);
+    try {
+      localStorage.setItem('l2h_completed_learning_steps', JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+
+    // Persist to Supabase learning_paths & learning_path_items
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Ensure learning path exists
+        const { data: pathRow } = await supabase
+          .from('learning_paths')
+          .upsert(
+            {
+              user_id: user.id,
+              target_role_id: '50000000-0000-0000-0000-000000000001',
+              title: `${currentRole?.title || 'Full-Stack Developer'} Remediation Roadmap`,
+              description: 'Personalized remediation modules for calibrated gaps',
+              progress_percent: Math.round((next.length / roadmapModules.length) * 100),
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,target_role_id' }
+          )
+          .select();
+
+        const pathId = pathRow && pathRow[0]?.id;
+        if (pathId) {
+          const stepNum = parseInt(step, 10);
+          await supabase.from('learning_path_items').upsert(
+            {
+              learning_path_id: pathId,
+              sequence_order: stepNum,
+              skill_id: '40000000-0000-0000-0000-000000000001',
+              topic: roadmapModules.find((m) => m.step === step)?.title || 'Roadmap Topic',
+              is_completed: next.includes(step),
+              completed_at: next.includes(step) ? new Date().toISOString() : null,
+            },
+            { onConflict: 'learning_path_id,sequence_order' }
+          );
+        }
+      }
+    } catch (err) {
+      console.warn('Persist learning item note:', err);
+    }
   };
 
   return (

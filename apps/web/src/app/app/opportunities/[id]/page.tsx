@@ -29,7 +29,7 @@ export default function OpportunityDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
-  const { state, updateState } = useCandidateState();
+  const { state, updateState, applyToOpportunity } = useCandidateState();
 
   const job = OPPORTUNITIES_CATALOG.find((o) => o.id === id) || OPPORTUNITIES_CATALOG[0];
   const [isSaved, setIsSaved] = useState(false);
@@ -37,6 +37,20 @@ export default function OpportunityDetailPage() {
 
   // Resume Approval Gate check:
   const isResumeReady = state.resume.status === 'READY';
+
+  // Dynamic explainable match calculation based on real candidate verified skills
+  const activeCandidateSkills = new Set(
+    state.skills.filter((s) => s.currentLevel !== 'L0').map((s) => s.name.toLowerCase().trim())
+  );
+  const matchedRequiredCount = job.requiredSkills.filter((s) =>
+    activeCandidateSkills.has(s.toLowerCase().trim())
+  ).length;
+  const matchPct = job.requiredSkills.length > 0
+    ? Math.round((matchedRequiredCount / job.requiredSkills.length) * 100)
+    : 100;
+  const missingSkills = job.requiredSkills.filter(
+    (s) => !activeCandidateSkills.has(s.toLowerCase().trim())
+  );
 
   const handleApplyClick = () => {
     if (!isResumeReady) {
@@ -48,22 +62,12 @@ export default function OpportunityDetailPage() {
   };
 
   const handleConfirmDirectApply = () => {
-    // Add to applications state
-    updateState((prev) => ({
-      ...prev,
-      stage: 'APPLIED',
-      applications: [
-        {
-          id: `app-${Date.now()}`,
-          opportunityId: job.id,
-          company: job.companyName,
-          title: job.title,
-          status: 'APPLIED',
-          appliedDate: 'Just now',
-        },
-        ...prev.applications,
-      ],
-    }));
+    // Add to applications state & persist to Supabase
+    applyToOpportunity({
+      id: job.id,
+      companyName: job.companyName,
+      title: job.title,
+    });
 
     setApplyModalOpen(false);
     // Open real external employer URL in new tab as strictly specified
@@ -218,33 +222,44 @@ export default function OpportunityDetailPage() {
             <div className="space-y-3 text-xs">
               <div className="p-3 bg-brand-cream border border-brand-ink/20 flex justify-between items-center">
                 <span className="font-semibold text-brand-ink/70">Role Alignment:</span>
-                <strong className="text-brand-orange">Strong (Full-Stack Engineer)</strong>
+                <strong className="text-brand-orange">{job.roleSlug === state.targetCareerSlug ? 'Target Match' : 'Adjacent Discipline'}</strong>
               </div>
               <div className="p-3 bg-brand-cream border border-brand-ink/20 flex justify-between items-center">
                 <span className="font-semibold text-brand-ink/70">Core Competencies:</span>
-                <strong className="text-brand-ink">5 / 6 Matched (83%)</strong>
+                <strong className="text-brand-ink">
+                  {matchedRequiredCount} / {job.requiredSkills.length} Matched ({matchPct}%)
+                </strong>
               </div>
               <div className="p-3 bg-brand-cream border border-brand-ink/20 flex justify-between items-center">
                 <span className="font-semibold text-brand-ink/70">Experience Level:</span>
-                <strong className="text-brand-ink">Matches (0-2 Years)</strong>
+                <strong className="text-brand-ink">{job.experienceLevelRequired}</strong>
               </div>
               <div className="p-3 bg-brand-cream border border-brand-ink/20 flex justify-between items-center">
                 <span className="font-semibold text-brand-ink/70">Location / Work Type:</span>
-                <strong className="text-brand-ink">Matches (Remote Permitted)</strong>
+                <strong className="text-brand-ink">{job.isRemote ? 'Remote Permitted' : job.location}</strong>
               </div>
             </div>
 
-            <div className="p-4 bg-brand-cream border border-brand-ink/20 space-y-2">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-rose block">
-                Missing Requirements:
-              </span>
-              <div className="text-xs text-brand-ink font-semibold flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5 text-brand-rose" /> Docker Containerization
+            {missingSkills.length > 0 && (
+              <div className="p-4 bg-brand-cream border border-brand-ink/20 space-y-2">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-rose block">
+                  Missing Requirements:
+                </span>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {missingSkills.map((ms) => (
+                    <span
+                      key={ms}
+                      className="text-xs text-brand-ink font-semibold flex items-center gap-1 bg-white border border-brand-ink/20 px-2 py-0.5"
+                    >
+                      <AlertTriangle className="w-3 h-3 text-brand-rose" /> {ms}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-[11px] text-brand-ink/70 font-medium">
+                  Bridge these requirements in your Personalized Roadmap to maximize interview conversion.
+                </p>
               </div>
-              <p className="text-[11px] text-brand-ink/70 font-medium">
-                Bridge this requirement in your Personalized Roadmap to maximize interview conversion.
-              </p>
-            </div>
+            )}
           </div>
         </div>
       </div>

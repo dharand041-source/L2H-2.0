@@ -1,8 +1,38 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '../ui/button';
+import { supabase } from '@/lib/supabase';
+import { ROUTES } from '@/lib/routes';
 
 export const EditorialNav: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function checkAuth() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (isMounted) {
+          setIsAuthenticated(Boolean(user));
+        }
+      } catch {}
+    }
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (isMounted) {
+        setIsAuthenticated(Boolean(session?.user));
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
   return (
     <header className="w-full border-b-[1.5px] border-brand-ink bg-brand-cream/95 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2">
@@ -51,16 +81,26 @@ export const EditorialNav: React.FC = () => {
 
           {/* CTA Actions */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            <Link href="/auth/login">
-              <Button variant="outline" size="sm" className="px-2.5 sm:px-4 py-1.5 text-xs font-bold whitespace-nowrap">
-                Log In
-              </Button>
-            </Link>
-            <Link href="/auth/signup">
-              <Button variant="primary" size="sm" className="px-3 sm:px-5 py-1.5 text-xs font-bold whitespace-nowrap">
-                Get Started
-              </Button>
-            </Link>
+            {isAuthenticated ? (
+              <Link href={ROUTES.app.dashboard}>
+                <Button variant="primary" size="sm" className="px-3 sm:px-5 py-1.5 text-xs font-bold whitespace-nowrap">
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href={ROUTES.auth.login}>
+                  <Button variant="outline" size="sm" className="px-2.5 sm:px-4 py-1.5 text-xs font-bold whitespace-nowrap">
+                    Log In
+                  </Button>
+                </Link>
+                <Link href={ROUTES.auth.signup}>
+                  <Button variant="primary" size="sm" className="px-3 sm:px-5 py-1.5 text-xs font-bold whitespace-nowrap">
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>

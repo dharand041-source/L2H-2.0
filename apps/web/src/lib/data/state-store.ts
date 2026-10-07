@@ -101,6 +101,62 @@ export function calculateReadinessScore(skills: UserSkillItem[], assessmentScore
   return Math.min(Math.round(skillProgress), 100);
 }
 
+export const CANONICAL_SKILL_UUIDS: Record<string, string> = {
+  'javascript': '40000000-0000-0000-0000-000000000001',
+  'react': '40000000-0000-0000-0000-000000000002',
+  'node.js': '40000000-0000-0000-0000-000000000003',
+  'node-js': '40000000-0000-0000-0000-000000000003',
+  'sql': '40000000-0000-0000-0000-000000000004',
+  'sql & relational dbs': '40000000-0000-0000-0000-000000000004',
+  'docker': '40000000-0000-0000-0000-000000000005',
+  'docker & deployment': '40000000-0000-0000-0000-000000000005',
+  'docker & containerization': '40000000-0000-0000-0000-000000000005',
+  'product roadmapping': '40000000-0000-0000-0000-000000000006',
+  'wireframing-figma': '40000000-0000-0000-0000-000000000007',
+  'figma': '40000000-0000-0000-0000-000000000007',
+  'seo & organic growth': '40000000-0000-0000-0000-000000000008',
+  'seo': '40000000-0000-0000-0000-000000000008',
+  'talent acquisition & sourcing': '40000000-0000-0000-0000-000000000009',
+  'talent acquisition': '40000000-0000-0000-0000-000000000009',
+  'typescript': '40000000-0000-0000-0000-000000000010',
+  'git & github': '40000000-0000-0000-0000-000000000011',
+  'css & tailwind': '40000000-0000-0000-0000-000000000012',
+  'web accessibility': '40000000-0000-0000-0000-000000000013',
+};
+
+export function getSkillUuid(name: string): string {
+  const key = (name || '').toLowerCase().trim();
+  if (CANONICAL_SKILL_UUIDS[key]) return CANONICAL_SKILL_UUIDS[key];
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash << 5) - hash + key.charCodeAt(i);
+    hash |= 0;
+  }
+  const hex = Math.abs(hash).toString(16).padStart(12, '0').slice(0, 12);
+  return `40000000-0000-0000-0000-${hex}`;
+}
+
+export function getSkillNameFromUuid(uuid: string): string | undefined {
+  for (const [name, u] of Object.entries(CANONICAL_SKILL_UUIDS)) {
+    if (u === uuid) return name;
+  }
+  return undefined;
+}
+
+export function getOpportunityUuid(id: string): string {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return id;
+  }
+  let hash = 0;
+  const key = id || 'opp';
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash << 5) - hash + key.charCodeAt(i);
+    hash |= 0;
+  }
+  const hex = Math.abs(hash).toString(16).padStart(12, '0').slice(0, 12);
+  return `80000000-0000-0000-0000-${hex}`;
+}
+
 const DEFAULT_STATE: CandidateState = {
   isLoggedIn: false,
   user: {
@@ -109,14 +165,16 @@ const DEFAULT_STATE: CandidateState = {
     headline: 'Candidate',
   },
   stage: 'CAREER_SELECTED',
-  targetCareerSlug: 'frontend-developer',
+  targetCareerSlug: 'full-stack-developer',
   readinessScore: 0,
   skills: [
     { name: 'JavaScript', currentLevel: 'L0', requiredLevel: 'L4', gap: 4, confidence: 0, evidenceCount: 0, priority: 'CRITICAL' },
-    { name: 'React', currentLevel: 'L0', requiredLevel: 'L4', gap: 4, confidence: 0, evidenceCount: 0, priority: 'CRITICAL' },
-    { name: 'CSS & Tailwind', currentLevel: 'L0', requiredLevel: 'L4', gap: 4, confidence: 0, evidenceCount: 0, priority: 'HIGH' },
+    { name: 'React', currentLevel: 'L0', requiredLevel: 'L3', gap: 3, confidence: 0, evidenceCount: 0, priority: 'CRITICAL' },
+    { name: 'Node.js', currentLevel: 'L0', requiredLevel: 'L3', gap: 3, confidence: 0, evidenceCount: 0, priority: 'HIGH' },
+    { name: 'SQL & Relational DBs', currentLevel: 'L0', requiredLevel: 'L3', gap: 3, confidence: 0, evidenceCount: 0, priority: 'HIGH' },
     { name: 'TypeScript', currentLevel: 'L0', requiredLevel: 'L3', gap: 3, confidence: 0, evidenceCount: 0, priority: 'HIGH' },
-    { name: 'Web Accessibility', currentLevel: 'L0', requiredLevel: 'L3', gap: 3, confidence: 0, evidenceCount: 0, priority: 'MEDIUM' },
+    { name: 'Git & GitHub', currentLevel: 'L0', requiredLevel: 'L4', gap: 4, confidence: 0, evidenceCount: 0, priority: 'HIGH' },
+    { name: 'Docker & Deployment', currentLevel: 'L0', requiredLevel: 'L2', gap: 2, confidence: 0, evidenceCount: 0, priority: 'MEDIUM' },
   ],
   seenQuestionIds: [],
   assessmentScore: undefined,
@@ -130,22 +188,13 @@ const DEFAULT_STATE: CandidateState = {
   },
   interviewScore: 0,
   resume: {
-    title: 'Frontend Developer (Entry)',
+    title: 'Full-Stack Developer Resume',
     status: 'NOT_READY',
     compatibilityScore: 0,
     matchedKeywords: [],
-    missingKeywords: ['React', 'TypeScript', 'CSS & Tailwind', 'JavaScript'],
+    missingKeywords: ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'Docker'],
   },
-  applications: [
-    {
-      id: 'app-001',
-      opportunityId: 'opp-001',
-      company: 'CloudScale Infrastructure Labs',
-      title: 'Junior Full-Stack Engineer (React / Node.js)',
-      status: 'APPLIED',
-      appliedDate: 'Yesterday',
-    },
-  ],
+  applications: [],
 };
 
 const STORAGE_KEY = 'l2h_candidate_state_v3';
@@ -352,12 +401,90 @@ function ensureSupabaseSync() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
+      if (!user) {
+        if (globalCandidateState.isLoggedIn) {
+          notifyListeners({
+            ...DEFAULT_STATE,
+            isLoggedIn: false,
+          });
+        }
+        return;
+      }
+
       if (user) {
+        // 1. Fetch profile
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .maybeSingle();
+
+        // 2. Fetch persisted user_skills
+        const { data: dbUserSkills } = await supabase
+          .from('user_skills')
+          .select('*')
+          .eq('user_id', user.id);
+
+        // 3. Fetch latest assessment attempt
+        const { data: attempts } = await supabase
+          .from('assessment_attempts')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('completed_at', { ascending: false })
+          .limit(1);
+
+        // 4. Fetch user applications
+        const { data: dbApplications } = await supabase
+          .from('applications')
+          .select('*')
+          .eq('user_id', user.id);
+
+        let mergedSkills = globalCandidateState.skills;
+        let assessmentScore = globalCandidateState.assessmentScore;
+
+        if (attempts && attempts.length > 0 && attempts[0].score !== undefined && attempts[0].score !== null) {
+          assessmentScore = Number(attempts[0].score);
+        }
+
+        if (dbUserSkills && dbUserSkills.length > 0) {
+          const dbSkillsMap = new Map<string, typeof dbUserSkills[0]>();
+          dbUserSkills.forEach((item) => {
+            dbSkillsMap.set(item.skill_id, item);
+          });
+
+          mergedSkills = mergedSkills.map((s) => {
+            const skillUuid = getSkillUuid(s.name);
+            const found = dbSkillsMap.get(skillUuid);
+            if (found) {
+              const reqNum = parseInt(s.requiredLevel.replace('L', ''), 10) || 3;
+              const curNum = parseInt((found.current_level || 'L1').replace('L', ''), 10) || 1;
+              const gap = Math.max(0, reqNum - curNum);
+              return {
+                ...s,
+                currentLevel: found.current_level as UserSkillItem['currentLevel'],
+                confidence: Number(found.confidence_score) || 0.8,
+                evidenceCount: found.evidence_count || 1,
+                gap,
+                priority: gap === 0 ? ('SATISFIED' as const) : gap >= 2 ? ('CRITICAL' as const) : ('HIGH' as const),
+              };
+            }
+            return s;
+          });
+        }
+
+        const calculatedReadiness = calculateReadinessScore(mergedSkills, assessmentScore);
+
+        const apps = (dbApplications && dbApplications.length > 0)
+          ? dbApplications.map((a) => ({
+              id: a.id,
+              opportunityId: a.opportunity_id,
+              company: a.notes?.split('Applied to ')?.[1]?.split(' for ')?.[0] || 'Direct Opportunity',
+              title: a.notes?.split(' for ')?.[1] || 'Applied Role',
+              status: (a.status || 'APPLIED') as CandidateState['applications'][0]['status'],
+              appliedDate: a.applied_date ? new Date(a.applied_date).toLocaleDateString() : 'Recently',
+              outcomeReason: a.outcome_reason || undefined,
+            }))
+          : globalCandidateState.applications;
 
         const next: CandidateState = {
           ...globalCandidateState,
@@ -369,7 +496,13 @@ function ensureSupabaseSync() {
             headline: profile?.headline || globalCandidateState.user.headline || 'Candidate',
             avatarUrl: profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture,
           },
+          stage: assessmentScore !== undefined ? 'SKILL_ANALYZED' : globalCandidateState.stage,
+          assessmentScore,
+          readinessScore: assessmentScore !== undefined ? calculatedReadiness : 0,
+          skills: mergedSkills,
+          applications: apps,
         };
+
         notifyListeners(next);
       }
     } catch (err) {
@@ -394,19 +527,10 @@ function ensureSupabaseSync() {
         },
       };
       notifyListeners(next);
-    } else if (event === 'SIGNED_OUT') {
-      const next: CandidateState = {
-        ...globalCandidateState,
-        isLoggedIn: false,
-        user: {
-          id: undefined,
-          name: '',
-          email: '',
-          headline: '',
-          avatarUrl: undefined,
-        },
-      };
-      notifyListeners(next);
+      // Run sync to pull remote database progress
+      sync();
+    } else if (event === 'SIGNED_OUT' || !session) {
+      notifyListeners(DEFAULT_STATE);
     }
   });
 }
@@ -434,7 +558,7 @@ export function useCandidateState() {
     notifyListeners(next);
   };
 
-  const setTargetRole = (slug: string) => {
+  const setTargetRole = async (slug: string) => {
     const role = getCareerBySlug(slug);
     if (!role) return;
 
@@ -458,38 +582,182 @@ export function useCandidateState() {
       readinessScore: 0,
       assessmentScore: undefined,
     });
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from('profiles')
+          .update({
+            headline: role.title,
+            career_track: role.track,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user.id);
+      }
+    } catch (err) {
+      console.warn('Failed to persist target role to profile:', err);
+    }
   };
 
-  const recordAssessmentCompletion = (score: number) => {
-    updateState((prev) => {
-      const achievedLevel = score >= 85 ? 'L4' : score >= 70 ? 'L3' : score >= 50 ? 'L2' : 'L1';
-      const achievedLvlNum = parseInt(achievedLevel.replace('L', ''), 10);
+  const recordAssessmentCompletion = async (
+    score: number,
+    details?: { questions?: Array<{ id: string; prompt: string }>; answers?: Record<string, string> }
+  ) => {
+    const currentSlug = globalCandidateState.targetCareerSlug;
+    const role = getCareerBySlug(currentSlug);
+    const roleTitle = role ? role.title : 'Full-Stack Developer';
 
-      const updatedSkills: UserSkillItem[] = prev.skills.map((s) => {
-        const reqLvlNum = parseInt(s.requiredLevel.replace('L', ''), 10) || 3;
-        const newCurLvlNum = Math.min(achievedLvlNum, reqLvlNum);
-        const newCurLevel = `L${newCurLvlNum}` as UserSkillItem['currentLevel'];
-        const newGap = Math.max(0, reqLvlNum - newCurLvlNum);
-        return {
-          ...s,
-          currentLevel: newCurLevel,
-          gap: newGap,
-          confidence: Math.min(Math.round((score / 100) * 100) / 100, 0.95),
-          evidenceCount: s.evidenceCount + 1,
-          priority: newGap === 0 ? ('SATISFIED' as const) : newGap >= 2 ? ('CRITICAL' as const) : ('HIGH' as const),
-        };
-      });
+    const achievedLevel = score >= 85 ? 'L4' : score >= 70 ? 'L3' : score >= 50 ? 'L2' : 'L1';
+    const achievedLvlNum = parseInt(achievedLevel.replace('L', ''), 10);
 
-      const newReadiness = calculateReadinessScore(updatedSkills, score);
-
+    const updatedSkills: UserSkillItem[] = globalCandidateState.skills.map((s) => {
+      const reqLvlNum = parseInt(s.requiredLevel.replace('L', ''), 10) || 3;
+      const newCurLvlNum = Math.min(achievedLvlNum, reqLvlNum);
+      const newCurLevel = `L${newCurLvlNum}` as UserSkillItem['currentLevel'];
+      const newGap = Math.max(0, reqLvlNum - newCurLvlNum);
       return {
-        ...prev,
-        assessmentScore: score,
-        stage: 'SKILL_ANALYZED',
-        readinessScore: newReadiness,
-        skills: updatedSkills,
+        ...s,
+        currentLevel: newCurLevel,
+        gap: newGap,
+        confidence: Math.min(Math.round((score / 100) * 100) / 100, 0.95),
+        evidenceCount: (s.evidenceCount || 0) + 1,
+        priority: newGap === 0 ? ('SATISFIED' as const) : newGap >= 2 ? ('CRITICAL' as const) : ('HIGH' as const),
       };
     });
+
+    const newReadiness = calculateReadinessScore(updatedSkills, score);
+
+    // Update in-memory state immediately for instant feedback
+    updateState({
+      assessmentScore: score,
+      stage: 'SKILL_ANALYZED',
+      readinessScore: newReadiness,
+      skills: updatedSkills,
+    });
+
+    // Background Supabase persistence
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // 1. Record assessment attempt
+        const { data: attemptRows, error: attemptErr } = await supabase
+          .from('assessment_attempts')
+          .insert({
+            user_id: user.id,
+            blueprint_id: '60000000-0000-0000-0000-000000000001',
+            title: `${roleTitle} Baseline Diagnostic`,
+            status: 'COMPLETED',
+            score: score,
+            passed: score >= 60,
+            completed_at: new Date().toISOString(),
+          })
+          .select();
+
+        if (attemptErr) {
+          console.warn('Supabase assessment_attempt write note:', attemptErr.message);
+        }
+
+        const attemptId = attemptRows && attemptRows[0] ? attemptRows[0].id : undefined;
+
+        // 2. Persist each calculated skill into user_skills
+        for (const s of updatedSkills) {
+          const skillUuid = getSkillUuid(s.name);
+          const { error: skillErr } = await supabase.from('user_skills').upsert(
+            {
+              user_id: user.id,
+              skill_id: skillUuid,
+              current_level: s.currentLevel,
+              confidence_score: s.confidence,
+              evidence_count: s.evidenceCount,
+              last_assessed_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,skill_id' }
+          );
+
+          if (skillErr) {
+            console.warn(`Supabase user_skill write for ${s.name}:`, skillErr.message);
+          }
+        }
+
+        // 3. Update readiness score in profiles
+        await supabase
+          .from('profiles')
+          .update({
+            readiness_score: newReadiness,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user.id);
+
+        // 4. Save improvement plan if skill gaps exist
+        const criticalGaps = updatedSkills
+          .filter((s) => s.priority === 'CRITICAL' || s.priority === 'HIGH')
+          .map((s) => s.name);
+
+        if (criticalGaps.length > 0) {
+          await supabase.from('improvement_plans').insert({
+            user_id: user.id,
+            trigger_type: 'ASSESSMENT_WEAKNESS',
+            identified_gaps: criticalGaps,
+            status: 'ACTIVE',
+          });
+        }
+      }
+    } catch (persistErr) {
+      console.warn('Background Supabase persistence error:', persistErr);
+    }
+  };
+
+  const applyToOpportunity = async (job: {
+    id: string;
+    companyName: string;
+    title: string;
+  }) => {
+    const oppUuid = getOpportunityUuid(job.id);
+    const newApp: CandidateState['applications'][0] = {
+      id: `app-${Date.now()}`,
+      opportunityId: job.id,
+      company: job.companyName,
+      title: job.title,
+      status: 'APPLIED',
+      appliedDate: 'Just now',
+    };
+
+    updateState((prev) => ({
+      ...prev,
+      stage: 'APPLIED',
+      applications: [newApp, ...prev.applications.filter((a) => a.opportunityId !== job.id)],
+    }));
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: appRow } = await supabase
+          .from('applications')
+          .upsert(
+            {
+              user_id: user.id,
+              opportunity_id: oppUuid,
+              status: 'APPLIED',
+              applied_date: new Date().toISOString(),
+              notes: `Applied to ${job.companyName} for ${job.title}`,
+            },
+            { onConflict: 'user_id,opportunity_id' }
+          )
+          .select();
+
+        if (appRow && appRow[0]?.id) {
+          await supabase.from('application_events').insert({
+            application_id: appRow[0].id,
+            event_type: 'APPLICATION_SUBMITTED',
+            description: `Application submitted for ${job.title} at ${job.companyName}`,
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to persist application to Supabase:', err);
+    }
   };
 
   const resetToDefault = () => {
@@ -497,10 +765,17 @@ export function useCandidateState() {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('Supabase signOut error:', err);
+    }
     resetToDefault();
     if (typeof window !== 'undefined') {
-      localStorage.removeItem(STORAGE_KEY);
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        sessionStorage.clear();
+      } catch {}
       window.location.href = ROUTES.auth.login;
     }
   };
@@ -511,6 +786,7 @@ export function useCandidateState() {
     updateState,
     setTargetRole,
     recordAssessmentCompletion,
+    applyToOpportunity,
     resetToDefault,
     signOut,
     nextAction: getNextBestAction(state),

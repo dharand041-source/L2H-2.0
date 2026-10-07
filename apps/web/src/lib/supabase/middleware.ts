@@ -31,18 +31,6 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
   
-  // Fast-path: internal Next.js RSC requests (client-side tab switching)
-  // Skip remote cloud round-trips to achieve instant (<100ms) tab routing
-  const isRSC =
-    request.headers.get('rsc') === '1' ||
-    request.nextUrl.searchParams.has('_rsc') ||
-    request.headers.get('next-router-prefetch') === '1' ||
-    request.headers.get('next-router-state-tree') !== null;
-
-  if (isRSC) {
-    return supabaseResponse;
-  }
-
   const allCookies = request.cookies.getAll();
   const hasAuthCookie = allCookies.some(
     (c) => c.name.startsWith('sb-') && c.name.includes('-auth-token')
@@ -52,13 +40,19 @@ export async function updateSession(request: NextRequest) {
   const isProtectedPath = pathname.startsWith('/app') || pathname.startsWith('/onboarding');
   const isAuthPath = pathname === '/auth/login' || pathname === '/auth/signup';
 
-  // If no auth cookie exists, skip remote Supabase request
-  if (!hasAuthCookie) {
-    // In dev mode, allow navigating freely without kicking out candidate session
-    if (process.env.NODE_ENV !== 'production' && isProtectedPath) {
-      return supabaseResponse;
-    }
+  // Fast-path: internal Next.js RSC requests for non-protected paths
+  const isRSC =
+    request.headers.get('rsc') === '1' ||
+    request.nextUrl.searchParams.has('_rsc') ||
+    request.headers.get('next-router-prefetch') === '1' ||
+    request.headers.get('next-router-state-tree') !== null;
 
+  if (isRSC && !isProtectedPath && !isAuthPath) {
+    return supabaseResponse;
+  }
+
+  // If no auth cookie exists on a protected path, redirect immediately to login
+  if (!hasAuthCookie) {
     if (isProtectedPath) {
       return NextResponse.redirect(getSafeRedirectUrl(request, '/auth/login', { next: pathname }));
     }
@@ -92,7 +86,7 @@ export async function updateSession(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user && isProtectedPath && process.env.NODE_ENV === 'production') {
+    if (!user && isProtectedPath) {
       return NextResponse.redirect(getSafeRedirectUrl(request, '/auth/login', { next: pathname }));
     }
 
@@ -101,6 +95,9 @@ export async function updateSession(request: NextRequest) {
     }
   } catch (err) {
     console.error('Supabase middleware auth error:', err);
+    if (isProtectedPath) {
+      return NextResponse.redirect(getSafeRedirectUrl(request, '/auth/login', { next: pathname }));
+    }
   }
 
   return supabaseResponse;

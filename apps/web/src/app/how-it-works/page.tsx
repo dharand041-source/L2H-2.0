@@ -21,8 +21,29 @@ import { ROUTES } from '@/lib/routes';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/lib/supabase';
 
 export default function HowItWorksPage() {
+  const [isAuthenticated, setIsAuthenticated] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    async function checkAuth() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (isMounted) {
+          setIsAuthenticated(Boolean(user));
+        }
+      } catch {}
+    }
+    checkAuth();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const journeyHref = isAuthenticated ? ROUTES.app.dashboard : ROUTES.auth.login;
+
   const steps = [
     {
       num: '01',
@@ -132,9 +153,9 @@ export default function HowItWorksPage() {
               Join thousands of candidates establishing verified skill evidence and unlocking legitimate employer matches.
             </p>
             <div className="flex justify-center gap-4">
-              <Link href={ROUTES.auth.signup}>
+              <Link href={journeyHref}>
                 <Button variant="accent" size="lg">
-                  Start Your Journey <ArrowRight className="w-4 h-4 ml-2 inline" />
+                  {isAuthenticated ? 'Go to Dashboard' : 'Start Your Journey'} <ArrowRight className="w-4 h-4 ml-2 inline" />
                 </Button>
               </Link>
             </div>

@@ -71,7 +71,7 @@ export default function BaselineAssessmentRunnerPage() {
     }
   };
 
-  const handleSubmitAssessment = () => {
+  const handleSubmitAssessment = async () => {
     setIsSubmitting(true);
 
     // Compute raw accuracy
@@ -84,12 +84,15 @@ export default function BaselineAssessmentRunnerPage() {
 
     const finalScore = Math.max(Math.round((correctCount / Math.max(totalQuestions, 1)) * 100), 45);
 
-    // Commit results to state store
-    recordAssessmentCompletion(finalScore);
+    // Commit results to state store and Supabase persistence
+    await recordAssessmentCompletion(finalScore, {
+      questions: testQuestions.map((q) => ({ id: q.id, prompt: q.prompt })),
+      answers: selectedAnswers,
+    });
 
     setTimeout(() => {
       router.push(ROUTES.app.assessments.results('baseline'));
-    }, 800);
+    }, 400);
   };
 
   if (!currentQ) {

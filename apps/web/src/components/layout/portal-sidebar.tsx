@@ -39,12 +39,12 @@ export const PortalSidebar: React.FC = () => {
   }, []);
 
   const user = {
-    name: mounted && state.user.name ? state.user.name : 'Emma',
-    email: mounted && state.user.email ? state.user.email : 'emma@nucleus-ui.com',
+    name: mounted && state.user.name ? state.user.name : 'Candidate',
+    email: mounted && state.user.email ? state.user.email : '',
     avatarUrl:
       mounted && state.user.avatarUrl
         ? state.user.avatarUrl
-        : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        : '',
   };
 
   const navItems: NavItem[] = [

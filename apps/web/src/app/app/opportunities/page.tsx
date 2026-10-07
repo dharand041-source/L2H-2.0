@@ -121,64 +121,76 @@ export default function OpportunitiesHubPage() {
 
       {/* Opportunities List */}
       <div className="space-y-4">
-        {filtered.map((job) => (
-          <div
-            key={job.id}
-            className="bg-brand-paper border-[1.5px] border-brand-ink p-6 shadow-editorial hover:border-brand-orange transition-all flex flex-col md:flex-row md:items-center justify-between gap-6"
-          >
-            <div className="space-y-2 max-w-2xl">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="editorial-badge bg-brand-cream text-brand-ink text-[10px]">
-                  {job.companyName}
-                </span>
-                <Badge variant={job.employmentType === 'FULL_TIME' ? 'default' : 'yellow'}>
-                  {job.employmentType.replace(/_/g, ' ')}
-                </Badge>
-                {job.isRemote && (
-                  <Badge variant="rose">REMOTE</Badge>
-                )}
-                <span className="text-xs font-semibold text-brand-ink/60">
-                  {job.location} &bull; {job.salary}
-                </span>
-              </div>
+        {filtered.map((job) => {
+          const activeCandidateSkills = new Set(
+            state.skills.filter((s) => s.currentLevel !== 'L0').map((s) => s.name.toLowerCase().trim())
+          );
+          const matchedCount = job.requiredSkills.filter((s) =>
+            activeCandidateSkills.has(s.toLowerCase().trim())
+          ).length;
+          const matchScore = state.assessmentScore !== undefined
+            ? Math.round((matchedCount / Math.max(job.requiredSkills.length, 1)) * 100)
+            : null;
 
-              <h3 className="font-display text-2xl font-bold uppercase text-brand-ink">
-                {job.title}
-              </h3>
-
-              <p className="text-xs text-brand-ink/80 font-medium line-clamp-2 leading-relaxed">
-                {job.description}
-              </p>
-
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {job.requiredSkills.map((s) => (
-                  <span key={s} className="text-[10px] font-semibold px-2 py-0.5 bg-brand-cream border border-brand-ink/20 text-brand-ink">
-                    {s}
+          return (
+            <div
+              key={job.id}
+              className="bg-brand-paper border-[1.5px] border-brand-ink p-6 shadow-editorial hover:border-brand-orange transition-all flex flex-col md:flex-row md:items-center justify-between gap-6"
+            >
+              <div className="space-y-2 max-w-2xl">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="editorial-badge bg-brand-cream text-brand-ink text-[10px]">
+                    {job.companyName}
                   </span>
-                ))}
+                  <Badge variant={job.employmentType === 'FULL_TIME' ? 'default' : 'yellow'}>
+                    {job.employmentType.replace(/_/g, ' ')}
+                  </Badge>
+                  {job.isRemote && (
+                    <Badge variant="rose">REMOTE</Badge>
+                  )}
+                  <span className="text-xs font-semibold text-brand-ink/60">
+                    {job.location} &bull; {job.salary}
+                  </span>
+                </div>
+
+                <h3 className="font-display text-2xl font-bold uppercase text-brand-ink">
+                  {job.title}
+                </h3>
+
+                <p className="text-xs text-brand-ink/80 font-medium line-clamp-2 leading-relaxed">
+                  {job.description}
+                </p>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {job.requiredSkills.map((s) => (
+                    <span key={s} className="text-[10px] font-semibold px-2 py-0.5 bg-brand-cream border border-brand-ink/20 text-brand-ink">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col items-start md:items-end justify-between gap-3 shrink-0">
+                <div className="text-right">
+                  <span className="editorial-badge bg-brand-yellow text-brand-ink text-[10px]">
+                    {matchScore !== null ? `${matchScore}% Verified Match` : 'Baseline Required'}
+                  </span>
+                  <span className="text-[10px] text-brand-ink/60 block mt-1">
+                    Source: {job.source} &bull; {job.lastVerifiedAt}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <Link href={ROUTES.app.opportunities.detail(job.id)} className="w-full md:w-auto">
+                    <Button variant="primary" size="sm" fullWidth className="text-xs">
+                      Inspect Match &amp; Apply <ChevronRight className="w-3.5 h-3.5 ml-1 inline" />
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </div>
-
-            <div className="flex flex-col items-start md:items-end justify-between gap-3 shrink-0">
-              <div className="text-right">
-                <span className="editorial-badge bg-brand-yellow text-brand-ink text-[10px]">
-                  91% Resume Match
-                </span>
-                <span className="text-[10px] text-brand-ink/60 block mt-1">
-                  Source: {job.source} &bull; {job.lastVerifiedAt}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 w-full md:w-auto">
-                <Link href={ROUTES.app.opportunities.detail(job.id)} className="w-full md:w-auto">
-                  <Button variant="primary" size="sm" fullWidth className="text-xs">
-                    Inspect Match &amp; Apply <ChevronRight className="w-3.5 h-3.5 ml-1 inline" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

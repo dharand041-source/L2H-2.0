@@ -17,13 +17,31 @@ function LoginForm() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isEmailLoading, setIsEmailLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const isBusy = isEmailLoading || isGoogleLoading;
   const [error, setError] = useState<string | null>(urlError);
   const [message, setMessage] = useState<string | null>(urlMessage);
 
+  React.useEffect(() => {
+    let isMounted = true;
+    async function checkExistingAuth() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (isMounted && user) {
+          router.replace(next || ROUTES.app.dashboard);
+        }
+      } catch {}
+    }
+    checkExistingAuth();
+    return () => {
+      isMounted = false;
+    };
+  }, [router, next]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoggingIn(true);
+    setIsEmailLoading(true);
     setError(null);
     setMessage(null);
 
@@ -35,22 +53,22 @@ function LoginForm() {
 
       if (authError) {
         setError(authError.message);
-        setIsLoggingIn(false);
+        setIsEmailLoading(false);
         return;
       }
 
       if (data.session) {
-        router.push(next || ROUTES.app.dashboard);
+        router.push(next || '/');
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An unexpected authentication error occurred.';
       setError(message);
-      setIsLoggingIn(false);
+      setIsEmailLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    setIsLoggingIn(true);
+    setIsGoogleLoading(true);
     setError(null);
     setMessage(null);
 
@@ -70,12 +88,12 @@ function LoginForm() {
 
       if (oauthError) {
         setError(oauthError.message);
-        setIsLoggingIn(false);
+        setIsGoogleLoading(false);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred during Google sign in.';
       setError(message);
-      setIsLoggingIn(false);
+      setIsGoogleLoading(false);
     }
   };
 
@@ -112,7 +130,7 @@ function LoginForm() {
         <button
           type="button"
           onClick={handleGoogleLogin}
-          disabled={isLoggingIn}
+          disabled={isBusy}
           className="w-full p-3 bg-white border-[1.5px] border-brand-ink shadow-editorial hover:shadow-editorial-hover transition-all flex items-center justify-center gap-3 font-bold uppercase text-xs text-brand-ink disabled:opacity-50"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -133,7 +151,7 @@ function LoginForm() {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
             />
           </svg>
-          <span>{isLoggingIn ? 'Connecting...' : 'Continue with Google'}</span>
+          <span>{isGoogleLoading ? 'CONTINUING WITH GOOGLE...' : 'CONTINUE WITH GOOGLE'}</span>
         </button>
       </div>
 
@@ -183,8 +201,8 @@ function LoginForm() {
           />
         </div>
 
-        <Button variant="primary" size="md" fullWidth disabled={isLoggingIn} type="submit">
-          {isLoggingIn ? 'Authenticating...' : 'Sign In with Email →'}
+        <Button variant="primary" size="md" fullWidth disabled={isBusy} type="submit">
+          {isEmailLoading ? 'SIGNING IN...' : 'SIGN IN WITH EMAIL →'}
         </Button>
       </form>
 

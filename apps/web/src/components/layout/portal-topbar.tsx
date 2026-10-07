@@ -68,7 +68,7 @@ export const PortalTopbar: React.FC = () => {
           className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 bg-brand-paper border border-brand-ink text-xs font-bold uppercase tracking-wider text-brand-ink hover:bg-brand-yellow/20 transition-colors shadow-editorial-sm shrink-0"
         >
           <Award className="w-3.5 h-3.5 text-brand-yellow shrink-0" />
-          <span><span className="hidden sm:inline">Readiness: </span><strong className="text-brand-orange">{state.readinessScore}%</strong></span>
+          <span><span className="hidden sm:inline">Readiness: </span><strong className="text-brand-orange">{state.assessmentScore !== undefined && state.assessmentScore > 0 ? `${state.readinessScore}%` : 'NOT ASSESSED'}</strong></span>
         </Link>
 
         {/* Notifications Icon with count */}

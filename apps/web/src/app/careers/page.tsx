@@ -9,10 +9,30 @@ import { EditorialNav } from '@/components/layout/editorial-nav';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/lib/supabase';
 
 export default function PublicCareersAtlasPage() {
   const [query, setQuery] = useState('');
   const [track, setTrack] = useState<'ALL' | 'TECHNICAL' | 'NON_TECHNICAL' | 'HYBRID'>('ALL');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    async function checkAuth() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (isMounted) {
+          setIsAuthenticated(Boolean(user));
+        }
+      } catch {}
+    }
+    checkAuth();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const journeyHref = isAuthenticated ? ROUTES.app.dashboard : ROUTES.auth.login;
 
   const filtered = CAREER_ROLES_CATALOG.filter((r) => {
     const matchesQuery =
@@ -120,9 +140,9 @@ export default function PublicCareersAtlasPage() {
                       View Blueprint
                     </Button>
                   </Link>
-                  <Link href={ROUTES.auth.signup} className="w-full">
+                  <Link href={journeyHref} className="w-full">
                     <Button variant="primary" size="sm" fullWidth>
-                      Start Journey →
+                      {isAuthenticated ? 'Dashboard →' : 'Start Journey →'}
                     </Button>
                   </Link>
                 </div>
