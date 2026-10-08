@@ -3,13 +3,14 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, Settings, Target, ChevronRight, Award, Check, AlertTriangle, X } from 'lucide-react';
+import { Bell, Settings, Target, ChevronRight, Award, Check, AlertTriangle, X, ShieldCheck } from 'lucide-react';
 import { ROUTES } from '@/lib/routes';
 import { useCandidateState } from '@/lib/data/state-store';
 import { getCareerBySlug, CAREER_ROLES_CATALOG } from '@/lib/data/careers-data';
 import { useSidebar } from './sidebar-context';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { JudgeDemoOverlay } from '@/components/judge/judge-demo-overlay';
 
 export const PortalTopbar: React.FC = () => {
   const { state, setTargetRole } = useCandidateState();
@@ -103,6 +104,25 @@ export const PortalTopbar: React.FC = () => {
 
       {/* Right Controls - guaranteed to fit smoothly on all screens */}
       <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        {/* Judge Demo Trigger Button */}
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('open-judge-demo'));
+            }
+          }}
+          className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 bg-brand-orange/10 border border-brand-orange text-brand-orange hover:bg-brand-orange hover:text-white transition-all text-xs font-bold uppercase tracking-wider shadow-editorial-sm shrink-0"
+          title="Judge Demonstration & Subsystem Navigator (Ctrl + Shift + J)"
+          aria-label="Judge Demonstration Navigator"
+        >
+          <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+          <span>Judge Demo</span>
+          <span className="font-mono text-[9px] px-1 py-0.5 bg-brand-orange/20 rounded hidden lg:inline">
+            Ctrl+Shift+J
+          </span>
+        </button>
+
         {/* Readiness Meter Pill */}
         <Link
           href={ROUTES.app.skills.analysis}
@@ -134,6 +154,9 @@ export const PortalTopbar: React.FC = () => {
         </Link>
       </div>
     </header>
+
+      {/* Global Judge Demo & Validation Navigator Overlay */}
+      <JudgeDemoOverlay />
 
       {/* Quick Role Switcher Modal */}
       {isSwitcherOpen && (

@@ -149,6 +149,7 @@ export const ROUTES = {
       recommended: '/app/opportunities/recommended',
       saved: '/app/opportunities/saved',
       eligibility: (id: string) => `/app/opportunities/eligibility/${id}`,
+      apply: (id: string) => `/app/opportunities/apply/${id}`,
       detail: (id: string) => `/app/opportunities/${id}`,
     },
 

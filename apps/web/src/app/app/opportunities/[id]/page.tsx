@@ -124,15 +124,16 @@ export default function OpportunityDetailPage() {
 
           {/* Action CTAs */}
           <div className="lg:col-span-4 flex flex-col gap-3">
-            <Button
-              variant="primary"
-              size="lg"
-              fullWidth
-              onClick={handleApplyClick}
-              className="text-base"
-            >
-              Direct Apply <ExternalLink className="w-4 h-4 ml-2 inline" />
-            </Button>
+            <Link href={ROUTES.app.opportunities.apply(job.id)} className="w-full">
+              <Button
+                variant="primary"
+                size="lg"
+                fullWidth
+                className="text-base"
+              >
+                Direct Apply <ExternalLink className="w-4 h-4 ml-2 inline" />
+              </Button>
+            </Link>
 
             <Link href={ROUTES.app.opportunities.eligibility(job.id)} className="w-full">
               <Button variant="outline" size="md" fullWidth>

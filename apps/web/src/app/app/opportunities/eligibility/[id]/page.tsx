@@ -44,7 +44,7 @@ export default function OpportunityEligibilityPage() {
             <span className="text-xs font-bold text-brand-ink/70">{job.companyName}</span>
           </div>
           <div className="shrink-0">
-            <Link href={ROUTES.app.opportunities.detail(id)}>
+            <Link href={ROUTES.app.opportunities.apply(id)}>
               <Button variant="primary" size="md">
                 Proceed to Apply →
               </Button>

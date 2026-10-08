@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { CAREER_ROLES_CATALOG, getCareerBySlug } from './careers-data';
 import { ROUTES } from '../routes';
 import { supabase } from '../supabase';
+import { ApplicationRecord, ApplicationStatus, ApplicationStore } from '../applications';
 
 export type JourneyStage =
   | 'UNAUTHENTICATED'
@@ -78,16 +79,7 @@ export interface CandidateState {
     matchedKeywords: string[];
     missingKeywords: string[];
   };
-  applications: Array<{
-    id: string;
-    opportunityId: string;
-    company: string;
-    title: string;
-    resumeVersionId?: string;
-    status: 'SAVED' | 'APPLIED' | 'SCREENING' | 'INTERVIEW' | 'OFFER' | 'REJECTED';
-    appliedDate: string;
-    outcomeReason?: string;
-  }>;
+  applications: ApplicationRecord[];
 }
 
 export function calculateReadinessScore(skills: UserSkillItem[], assessmentScore?: number): number {
@@ -510,15 +502,23 @@ function ensureSupabaseSync() {
 
         const calculatedReadiness = calculateReadinessScore(mergedSkills, assessmentScore);
 
-        const apps = (dbApplications && dbApplications.length > 0)
+        const localApps = ApplicationStore.getApplications();
+        const apps = (localApps && localApps.length > 0)
+          ? localApps
+          : (dbApplications && dbApplications.length > 0)
           ? dbApplications.map((a) => ({
               id: a.id,
               opportunityId: a.opportunity_id,
               company: a.notes?.split('Applied to ')?.[1]?.split(' for ')?.[0] || 'Direct Opportunity',
               title: a.notes?.split(' for ')?.[1] || 'Applied Role',
-              status: (a.status || 'APPLIED') as CandidateState['applications'][0]['status'],
-              appliedDate: a.applied_date ? new Date(a.applied_date).toLocaleDateString() : 'Recently',
+              location: 'Remote',
+              careerRoleSlug: a.career_role_slug || globalCandidateState.targetCareerSlug,
+              status: (a.status || 'APPLIED') as ApplicationStatus,
+              appliedDate: a.applied_date ? new Date(a.applied_date).toLocaleDateString() : undefined,
               outcomeReason: a.outcome_reason || undefined,
+              createdAt: a.created_at || new Date().toISOString(),
+              updatedAt: a.updated_at || new Date().toISOString(),
+              events: [],
             }))
           : globalCandidateState.applications;
 
@@ -962,21 +962,38 @@ export function useCandidateState() {
     id: string;
     companyName: string;
     title: string;
+    location?: string;
+    workMode?: string;
+    careerRoleSlug?: string;
+    resumeVersionId?: string;
+    resumeTitle?: string;
+    compatibilityScore?: number;
+    eligibilityStatus?: 'ELIGIBLE' | 'POTENTIALLY_ELIGIBLE' | 'NOT_ELIGIBLE' | 'INSUFFICIENT_DATA';
+    applyUrl?: string;
+    jobUrl?: string;
+    source?: string;
   }) => {
     const oppUuid = getOpportunityUuid(job.id);
-    const newApp: CandidateState['applications'][0] = {
-      id: `app-${Date.now()}`,
+    const recorded = ApplicationStore.recordApplicationStarted({
       opportunityId: job.id,
       company: job.companyName,
       title: job.title,
-      status: 'APPLIED',
-      appliedDate: 'Just now',
-    };
+      location: job.location,
+      workMode: job.workMode,
+      careerRoleSlug: job.careerRoleSlug || globalCandidateState.targetCareerSlug,
+      resumeVersionId: job.resumeVersionId,
+      resumeTitle: job.resumeTitle,
+      compatibilityScore: job.compatibilityScore,
+      eligibilityStatus: job.eligibilityStatus,
+      applyUrl: job.applyUrl,
+      jobUrl: job.jobUrl,
+      source: job.source,
+    });
 
     updateState((prev) => ({
       ...prev,
       stage: 'APPLIED',
-      applications: [newApp, ...prev.applications.filter((a) => a.opportunityId !== job.id)],
+      applications: [recorded, ...prev.applications.filter((a) => a.id !== recorded.id && a.opportunityId !== job.id)],
     }));
 
     try {
@@ -988,9 +1005,18 @@ export function useCandidateState() {
             {
               user_id: user.id,
               opportunity_id: oppUuid,
-              status: 'APPLIED',
-              applied_date: new Date().toISOString(),
-              notes: `Applied to ${job.companyName} for ${job.title}`,
+              status: 'APPLICATION_STARTED',
+              career_role_slug: job.careerRoleSlug || globalCandidateState.targetCareerSlug,
+              compatibility_score: job.compatibilityScore,
+              eligibility_status: job.eligibilityStatus || 'INSUFFICIENT_DATA',
+              resume_version_id:
+                job.resumeVersionId &&
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(job.resumeVersionId)
+                  ? job.resumeVersionId
+                  : null,
+              application_started_at: new Date().toISOString(),
+              apply_url: job.applyUrl,
+              notes: `External application started for ${job.title} at ${job.companyName}`,
             },
             { onConflict: 'user_id,opportunity_id' }
           )
@@ -999,13 +1025,100 @@ export function useCandidateState() {
         if (appRow && appRow[0]?.id) {
           await supabase.from('application_events').insert({
             application_id: appRow[0].id,
-            event_type: 'APPLICATION_SUBMITTED',
-            description: `Application submitted for ${job.title} at ${job.companyName}`,
+            event_type: 'APPLICATION_STARTED',
+            description: `Application opened for ${job.title} at ${job.companyName}`,
+            new_status: 'APPLICATION_STARTED',
+            source_type: 'CANDIDATE_REPORTED',
           });
         }
       }
     } catch (err) {
-      console.warn('Failed to persist application to Supabase:', err);
+      console.warn('Failed to persist application started to Supabase:', err);
+    }
+  };
+
+  const confirmSubmission = async (applicationIdOrJobId: string) => {
+    let app = ApplicationStore.getApplicationById(applicationIdOrJobId);
+    if (!app) {
+      app = ApplicationStore.findExistingApplicationByJobId(applicationIdOrJobId);
+    }
+    if (!app) return;
+
+    const confirmed = ApplicationStore.confirmSubmission(app.id);
+    if (confirmed) {
+      updateState((prev) => ({
+        ...prev,
+        applications: prev.applications.map((a) => (a.id === confirmed.id ? confirmed : a)),
+      }));
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const oppUuid = getOpportunityUuid(confirmed.opportunityId);
+          await supabase
+            .from('applications')
+            .update({
+              status: 'APPLIED',
+              applied_date: new Date().toISOString(),
+              last_status_change_at: new Date().toISOString(),
+            })
+            .eq('user_id', user.id)
+            .eq('opportunity_id', oppUuid);
+        }
+      } catch (err) {
+        console.warn('Failed to persist confirmed submission to Supabase:', err);
+      }
+    }
+  };
+
+  const updateApplicationStatus = async (params: {
+    applicationId: string;
+    newStatus: ApplicationStatus;
+    reasonCategory?: string;
+    reasonText?: string;
+    sourceType?: any;
+    sourceConfidence?: any;
+    offerDetails?: string;
+    joiningDate?: string;
+    followUpDate?: string;
+    followUpNotes?: string;
+  }) => {
+    const updated = ApplicationStore.updateStatus(params);
+    if (updated) {
+      updateState((prev) => ({
+        ...prev,
+        applications: prev.applications.map((a) => (a.id === updated.id ? updated : a)),
+      }));
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const oppUuid = getOpportunityUuid(updated.opportunityId);
+          await supabase
+            .from('applications')
+            .update({
+              status: updated.status,
+              outcome_reason: updated.outcomeReason,
+              outcome_reason_category: updated.outcomeReasonCategory,
+              outcome_source_type: updated.outcomeSourceType,
+              outcome_source_confidence: updated.outcomeSourceConfidence,
+              withdrawn_at: updated.withdrawnAt,
+              withdrawal_reason_category: updated.withdrawalReasonCategory,
+              withdrawal_reason_text: updated.withdrawalReasonText,
+              offer_date: updated.offerDate,
+              offer_details: updated.offerDetails,
+              offer_accepted_at: updated.offerAcceptedAt,
+              offer_declined_reason: updated.offerDeclinedReason,
+              follow_up_date: updated.followUpDate,
+              follow_up_notes: updated.followUpNotes,
+              last_status_change_at: new Date().toISOString(),
+            })
+            .eq('user_id', user.id)
+            .eq('opportunity_id', oppUuid);
+        }
+      } catch (err) {
+        console.warn('Failed to persist status change to Supabase:', err);
+      }
     }
   };
 
@@ -1037,6 +1150,8 @@ export function useCandidateState() {
     recordAssessmentCompletion,
     recordPracticeCompletion,
     applyToOpportunity,
+    confirmSubmission,
+    updateApplicationStatus,
     resetToDefault,
     signOut,
     nextAction: getNextBestAction(state),

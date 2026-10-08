@@ -214,6 +214,163 @@ Requires 4 years of industry experience. Must know React and Node.js.
   const allInTN = tnJobs.every((j) => j.isTamilNadu);
   assert(allInTN, 'All filtered jobs have verified Tamil Nadu locations (Chennai, Coimbatore, etc.)');
 
+  // TEST SUITE 9: NOTIFICATIONS ENGINE DETERMINISTIC FEEDS (PHASE 5)
+  console.log('\n--- TEST SUITE 9: Notifications Engine Deterministic Feeds ---');
+  const { NotificationStore } = await import('../apps/web/src/lib/notifications/notification-store');
+  const notifs = NotificationStore.getInitialDeterministicNotifications();
+  assert(notifs.length >= 3, `Initialized deterministic notifications (found ${notifs.length})`);
+  assert(notifs.some((n) => n.type === 'JOB'), 'Contains real verified job match notification');
+  assert(notifs.some((n) => n.type === 'RESUME'), 'Contains resume & ATS scanner action alert');
+
+  // TEST SUITE 10: SETTINGS PERSISTENCE & PRIVACY CONTROLS (PHASE 4)
+  console.log('\n--- TEST SUITE 10: Platform Settings Defaults & Disclosure Controls ---');
+  const { DEFAULT_PLATFORM_SETTINGS } = await import('../apps/web/src/lib/settings/settings-store');
+  assert(DEFAULT_PLATFORM_SETTINGS.allowEmployerSkillReceipts === true, 'Default allows verified employer skill inspection');
+  assert(DEFAULT_PLATFORM_SETTINGS.antiRepetitionActive === true, 'Default activates anti-repetition engine');
+  assert(DEFAULT_PLATFORM_SETTINGS.matchThresholdPercent === 80, 'Default threshold set to 80%');
+
+  // TEST SUITE 11: DIRECT APPLY ZERO DEMO RESUME INTEGRITY (CRITICAL BUG #1 & #2)
+  console.log('\n--- TEST SUITE 11: Direct Apply Zero Demo Resume & Route Integrity ---');
+  const { ResumeStore } = await import('../apps/web/src/lib/resume/resume-store');
+  const versions = ResumeStore.getVersions();
+  assert(Array.isArray(versions), 'Resume versions store accessible and array-based');
+  // Confirm that empty state returns null rather than a dummy resume
+  if (versions.length === 0) {
+    assert(ResumeStore.getActiveVersion() === null, 'When zero resumes uploaded, getActiveVersion() strictly returns null (No sample resume)');
+  }
+
+  // TEST SUITE 12: APPLICATION TRACKER PRODUCTION LIFECYCLE (MASTER PROMPT REQUIREMENTS)
+  console.log('\n--- TEST SUITE 12: Application Tracker Lifecycle, Outcomes, and Audit Trail ---');
+  const { ApplicationStore } = await import('../apps/web/src/lib/applications/application-store');
+
+  // 1. Initial State: Empty or real records, zero fake data
+  const initialApps = ApplicationStore.getApplications();
+  assert(Array.isArray(initialApps), 'Application store returns array of records');
+
+  // 2. Saving a job creates a SAVED record with JOB_SAVED event
+  const testJobId = `job-test-${Date.now()}`;
+  const saveRes = ApplicationStore.saveJobAsApplication({
+    opportunityId: testJobId,
+    company: 'Test Technologies India',
+    title: 'Full-Stack Software Engineer',
+    location: 'Chennai, TN',
+    workMode: 'Hybrid',
+    careerRoleSlug: 'full-stack-developer',
+    careerRoleTitle: 'Full-Stack Developer',
+    applyUrl: 'https://careers.example.com/jobs/123',
+    jobUrl: 'https://careers.example.com/postings/123',
+    source: 'EMPLOYER_CAREER_PORTAL',
+  });
+  assert(saveRes.application.status === 'SAVED', 'Saved job record created with status SAVED');
+  assert(saveRes.isExisting === false, 'New application correctly marked as non-duplicate');
+  assert(saveRes.application.events.length >= 1, 'Initial JOB_SAVED event generated in timeline');
+  assert(saveRes.application.events[0].eventType === 'JOB_SAVED', 'First event is strictly JOB_SAVED');
+
+  // 3. Duplicate Application Protection
+  const duplicateCheck = ApplicationStore.findExistingApplicationByJobId(testJobId);
+  assert(duplicateCheck !== null, 'Existing application discovered by opportunity ID');
+  assert(duplicateCheck?.id === saveRes.application.id, 'Duplicate application matches saved record ID');
+
+  // 4. CRITICAL STATUS DISTINCTION: Opening employer portal records APPLICATION_STARTED ONLY (NOT APPLIED!)
+  const startedApp = ApplicationStore.recordApplicationStarted({
+    opportunityId: testJobId,
+    company: 'Test Technologies India',
+    title: 'Full-Stack Software Engineer',
+    location: 'Chennai, TN',
+    careerRoleSlug: 'full-stack-developer',
+    resumeVersionId: 'res-test-v1',
+    resumeTitle: 'Resume Version 1',
+    compatibilityScore: 88,
+    eligibilityStatus: 'ELIGIBLE',
+    applyUrl: 'https://careers.example.com/jobs/123',
+  });
+  assert(startedApp.status === 'APPLICATION_STARTED', 'Clicking Continue to Portal sets status APPLICATION_STARTED');
+  assert(startedApp.status !== 'APPLIED', 'CRITICAL PRINCIPLE: APPLICATION_STARTED is strictly NOT APPLIED');
+  assert(startedApp.appliedDate === undefined, 'Applied date remains undefined until explicit user confirmation');
+  assert(startedApp.resumeVersionId === 'res-test-v1', 'Resume version locked to selected document version');
+  assert(startedApp.compatibilityScore === 88, 'Compatibility estimate stored against application');
+  assert(startedApp.eligibilityStatus === 'ELIGIBLE', 'Eligibility state stored against application');
+
+  // 5. Explicit Submission Confirmation Gate: YES, I APPLIED
+  const confirmedApp = ApplicationStore.confirmSubmission(startedApp.id);
+  assert(confirmedApp !== null, 'Submission confirmed successfully');
+  assert(confirmedApp?.status === 'APPLIED', 'Status changed to APPLIED ONLY after explicit candidate confirmation');
+  assert(confirmedApp?.appliedDate !== undefined, 'Authentic applied date recorded upon confirmation');
+  assert(confirmedApp?.events.some((e) => e.eventType === 'APPLIED'), 'Immutable APPLIED event recorded in timeline');
+
+  // 6. Transition Validation Engine
+  assert(ApplicationStore.canTransition('APPLIED', 'SCREENING'), 'Logical transition APPLIED -> SCREENING allowed');
+  assert(ApplicationStore.canTransition('SCREENING', 'INTERVIEW'), 'Logical transition SCREENING -> INTERVIEW allowed');
+  assert(ApplicationStore.canTransition('INTERVIEW', 'OFFER'), 'Logical transition INTERVIEW -> OFFER allowed');
+  assert(ApplicationStore.canTransition('INTERVIEW', 'REJECTED'), 'Logical transition INTERVIEW -> REJECTED allowed');
+  assert(ApplicationStore.canTransition('APPLIED', 'WITHDRAWN'), 'Logical transition APPLIED -> WITHDRAWN allowed');
+
+  // 7. Status transition to SCREENING and then INTERVIEW
+  const screeningApp = ApplicationStore.updateStatus({
+    applicationId: startedApp.id,
+    newStatus: 'SCREENING',
+  });
+  assert(screeningApp?.status === 'SCREENING', 'Status moved to SCREENING');
+
+  const interviewApp = ApplicationStore.updateStatus({
+    applicationId: startedApp.id,
+    newStatus: 'INTERVIEW',
+  });
+  assert(interviewApp?.status === 'INTERVIEW', 'Status moved to INTERVIEW');
+  assert(interviewApp?.events.length >= 4, 'All historical events preserved in chronological audit trail');
+
+  // 8. Rejection Reason Engine & Strict Honesty:
+  // If employer gives no reason, system displays "Employer did not provide a reason." (NEVER invents reasons)
+  const rejectedApp = ApplicationStore.updateStatus({
+    applicationId: startedApp.id,
+    newStatus: 'REJECTED',
+    reasonCategory: 'TECHNICAL_INTERVIEW',
+    reasonText: '', // No reason provided
+    sourceType: 'EMPLOYER_EMAIL',
+    sourceConfidence: 'CONFIRMED',
+  });
+  assert(rejectedApp?.status === 'REJECTED', 'Application status recorded as REJECTED');
+  assert(rejectedApp?.outcomeReason === 'Employer did not provide a reason.', 'Strict honesty: defaults to "Employer did not provide a reason." rather than hallucinating skill gap');
+  assert(rejectedApp?.outcomeSourceType === 'EMPLOYER_EMAIL', 'Outcome source attributed to EMPLOYER_EMAIL');
+
+  // 9. Candidate Withdrawal Flow
+  const withdrawJobId = `job-withdraw-${Date.now()}`;
+  const withdrawAppInitial = ApplicationStore.recordApplicationStarted({
+    opportunityId: withdrawJobId,
+    company: 'Withdraw Test Corp',
+    title: 'Backend Engineer',
+    careerRoleSlug: 'backend-developer',
+  });
+  const withdrawnApp = ApplicationStore.updateStatus({
+    applicationId: withdrawAppInitial.id,
+    newStatus: 'WITHDRAWN',
+    reasonCategory: 'ACCEPTED_ANOTHER_OFFER',
+    reasonText: 'Accepted offer at primary target company.',
+    sourceType: 'CANDIDATE_REPORTED',
+  });
+  assert(withdrawnApp?.status === 'WITHDRAWN', 'Status recorded as WITHDRAWN');
+  assert(withdrawnApp?.withdrawalReasonCategory === 'ACCEPTED_ANOTHER_OFFER', 'Withdrawal category correctly stored');
+  assert(withdrawnApp?.outcomeSourceType === 'CANDIDATE_REPORTED', 'Withdrawal source attributed as CANDIDATE_REPORTED');
+
+  // 10. Funnel Metrics & Conversion Rates
+  const metrics = ApplicationStore.calculateFunnelMetrics();
+  assert(metrics.total >= 2, `Funnel metrics calculated on active data (total: ${metrics.total})`);
+  assert(metrics.rejected >= 1, 'Rejection counted in metrics');
+  assert(metrics.withdrawn >= 1, 'Withdrawal counted in metrics');
+  if (metrics.total < 5) {
+    assert(metrics.rates.hasReliableSample === false, 'Strict honesty: < 5 applications returns hasReliableSample === false');
+    assert(metrics.rates.appliedToScreeningRate === null, 'Conversion rates remain null when sample size is insufficient');
+  }
+
+  // 11. L2H Competency Gap Observations (Separated from employer reason)
+  const sampleCandidateSkills = [
+    { name: 'Docker & Deployment', currentLevel: 'L0', requiredLevel: 'L2' },
+    { name: 'System Design', currentLevel: 'L1', requiredLevel: 'L3' },
+  ];
+  const observations = ApplicationStore.synthesizeObservations([rejectedApp!], sampleCandidateSkills);
+  assert(observations.length > 0, 'Synthesized L2H improvement observations');
+  assert(observations[0].observationNote.includes('L2H pattern analysis'), 'Observation explicitly clarified as L2H pattern, NOT employer stated reason');
+
   console.log('\n====================================================================');
   console.log(`TOTAL TESTS: ${passed + failed} | PASSED: ${passed} | FAILED: ${failed}`);
   console.log('====================================================================\n');
