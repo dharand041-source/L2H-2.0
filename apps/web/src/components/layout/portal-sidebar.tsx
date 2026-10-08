@@ -22,6 +22,7 @@ import {
   Settings,
   LogOut,
   Target,
+  ShieldCheck,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/routes';
 import { useCandidateState } from '@/lib/data/state-store';
@@ -139,6 +140,12 @@ export const PortalSidebar: React.FC = () => {
       href: ROUTES.app.analytics.home,
       icon: <BarChart3 className="h-full w-full" />,
       isActive: pathname?.startsWith(ROUTES.app.analytics.home),
+    },
+    {
+      label: 'Validation Lab',
+      href: ROUTES.app.validation,
+      icon: <ShieldCheck className="h-full w-full" />,
+      isActive: pathname?.startsWith(ROUTES.app.validation),
     },
     {
       label: 'Notifications',

@@ -15,6 +15,7 @@ export const ROUTES = {
     about: '/about',
     ethics: '/ethics',
     contact: '/contact',
+    validation: '/validation',
   },
 
   // Authentication Flow
@@ -179,7 +180,8 @@ export const ROUTES = {
       applications: '/app/analytics/applications',
     },
 
-    // System Administration & Profile
+    // System Administration, Validation & Profile
+    validation: '/app/validation',
     notifications: '/app/notifications',
     profile: '/app/profile',
     settings: '/app/settings',

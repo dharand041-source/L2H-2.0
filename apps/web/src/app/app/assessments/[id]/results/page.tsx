@@ -30,11 +30,41 @@ export default function AssessmentResultsPage() {
   const score = state.assessmentScore ?? 0;
   const isAssessed = state.assessmentScore !== undefined;
 
+  // Retrieve calibrated entry level from session storage
+  const [calibratedStartingLevel, setCalibratedStartingLevel] = React.useState<string>('BEGINNER');
+  React.useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(`l2h_calibrated_level_${state.targetCareerSlug}`);
+      if (stored) setCalibratedStartingLevel(stored);
+    } catch {}
+  }, [state.targetCareerSlug]);
+
+  const demonstratedLevelLabel =
+    score >= 90
+      ? 'L4 Advanced'
+      : score >= 75
+      ? 'L3 Intermediate'
+      : score >= 55
+      ? 'L2 Applied Beginner'
+      : score >= 35
+      ? 'L1 Fundamentals'
+      : 'L0 Starting Point';
+
+  // Helper for non-humiliating constructive labels
+  const getConstructiveVerdict = (currentLvl: string, gap: number) => {
+    if (gap === 0) return 'APPLIED / VERIFIED';
+    if (currentLvl === 'L0') return 'NOT YET DEMONSTRATED';
+    if (currentLvl === 'L1') return 'NEEDS PRACTICE';
+    if (currentLvl === 'L2') return 'DEVELOPING';
+    if (currentLvl === 'L3') return 'INTERMEDIATE';
+    return 'ADVANCED';
+  };
+
   // Dynamically map real skills from state
   const skillScores = (state.skills || []).map((s) => {
     const isZero = s.currentLevel === 'L0' && !isAssessed;
     const scoreVal = isZero ? 0 : Math.round(s.confidence * 100) || (s.currentLevel === 'L0' ? 15 : 75);
-    const verdict = s.gap === 0 ? 'VERIFIED MASTERY' : s.priority === 'CRITICAL' ? 'CRITICAL GAP' : 'GROWTH NEEDED';
+    const verdict = getConstructiveVerdict(s.currentLevel, s.gap);
     const badge = s.gap === 0 ? 'default' : s.priority === 'CRITICAL' ? 'rose' : 'yellow';
 
     return {
@@ -108,35 +138,52 @@ export default function AssessmentResultsPage() {
       <div className="bg-brand-paper border-[1.5px] border-brand-ink p-6 sm:p-8 shadow-editorial">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           <div className="lg:col-span-8 space-y-4">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <span className="editorial-badge bg-brand-orange text-white text-xs">
-                {isAssessed ? 'Diagnostic Complete' : 'Diagnostic Pending'}
+                Your Baseline
               </span>
               <span className="text-xs font-bold text-brand-ink/70">
-                Calibrated against ESCO Benchmark
+                Career: {currentRole?.title || 'Target Role'}
               </span>
             </div>
-            <h2 className="font-display text-3xl sm:text-4xl font-bold uppercase text-brand-ink">
-              Overall Performance:{' '}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-1">
+              <div className="p-3 bg-brand-cream border border-brand-ink/20">
+                <span className="text-[10px] uppercase font-bold text-brand-ink/60 block">Starting Calibration</span>
+                <span className="font-display text-lg font-bold text-brand-ink">{calibratedStartingLevel}</span>
+              </div>
+              <div className="p-3 bg-brand-cream border border-brand-ink/20">
+                <span className="text-[10px] uppercase font-bold text-brand-ink/60 block">Demonstrated Level</span>
+                <span className="font-display text-lg font-bold text-brand-orange">{demonstratedLevelLabel}</span>
+              </div>
+            </div>
+
+            <h2 className="font-display text-2xl sm:text-3xl font-bold uppercase text-brand-ink">
+              Overall Calibrated Score:{' '}
               <span className="text-brand-orange">
                 {isAssessed ? `${score}%` : 'NOT ASSESSED'}
               </span>
             </h2>
             <p className="text-sm text-brand-ink/85 font-medium leading-relaxed max-w-2xl">
               {isAssessed
-                ? `Evaluation complete for ${currentRole?.title || 'your role'}. Foundational competencies have been benchmarked across L0 to L5 levels. Actionable skill gaps are highlighted below for guided practice.`
+                ? `Baseline calibrated for ${currentRole?.title || 'your role'}. This is your starting diagnostic map, not a fixed grade. Your identified skill gaps feed directly into your personalized learning roadmap below.`
                 : 'No diagnostic attempt has been recorded yet. Launch an assessment to calibrate your baseline across L0 to L5.'}
             </p>
 
             <div className="pt-2 flex flex-wrap items-center gap-3">
-              <Link href={ROUTES.app.skills.analysis}>
+              <Link href={ROUTES.app.learning.roadmap}>
                 <Button variant="primary" size="lg" className="text-base">
-                  View My Skill Gaps <ArrowRight className="ml-2 w-5 h-5 inline" />
+                  Start Personalized Learning Roadmap <ArrowRight className="ml-2 w-5 h-5 inline" />
+                </Button>
+              </Link>
+              <Link href={ROUTES.app.skills.analysis}>
+                <Button variant="outline" size="lg" className="text-base">
+                  View Skill Gaps
                 </Button>
               </Link>
               <Link href={ROUTES.app.assessments.baseline}>
-                <Button variant="outline" size="lg" className="text-base">
-                  <RefreshCw className="mr-2 w-4 h-4 inline" /> Adaptive Reassessment
+                <Button variant="ghost" size="lg" className="text-base text-brand-ink/80">
+                  <RefreshCw className="mr-2 w-4 h-4 inline" /> Reassess Skill
                 </Button>
               </Link>
             </div>

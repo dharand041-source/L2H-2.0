@@ -1,0 +1,21 @@
+{
+  "name": "Learn-2-Hire 2.0",
+  "short_name": "L2H",
+  "description": "Career intelligence, adaptive assessment, and verified employment platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FBF8F2",
+  "theme_color": "#FF4F17",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    }
+  ]
+}

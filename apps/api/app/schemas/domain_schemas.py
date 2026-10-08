@@ -4,6 +4,11 @@ from enum import Enum
 from datetime import datetime
 from uuid import UUID
 
+class CandidateEntryLevel(str, Enum):
+    BEGINNER = "BEGINNER"
+    AMATEUR = "AMATEUR"
+    PROFESSIONAL = "PROFESSIONAL"
+
 class DifficultyLevel(str, Enum):
     L0 = "L0"
     L1 = "L1"

@@ -118,26 +118,84 @@ ORDER BY cohort_month;`,
     setIsRunning(true);
     setTestOutput(null);
 
-    await new Promise((r) => setTimeout(r, 650));
+    try {
+      // Define concrete test assertions for code execution sandbox
+      const testCasesToRun = [
+        {
+          id: 't1',
+          name: 'Syntax and Execution Verification',
+          input: 'typeof ' + (activeSkill.toLowerCase().includes('react') ? 'useDebounce' : 'rateLimiter') + ' !== "undefined"',
+          expectedOutput: 'true'
+        },
+        {
+          id: 't2',
+          name: 'Functional Invariant Check',
+          input: activeSkill.toLowerCase().includes('react') 
+            ? 'typeof useDebounce === "function"' 
+            : '(() => { const l = rateLimiter(2, 5000); const r1 = l("127.0.0.1"); const r2 = l("127.0.0.1"); const r3 = l("127.0.0.1"); return r1.allowed && r2.allowed && !r3.allowed; })()',
+          expectedOutput: 'true'
+        }
+      ];
 
-    // Record verified practice evidence in state & Supabase
-    await recordPracticeCompletion(activeSkill, 100, {
-      challengeTitle: challengeSpec.title,
-      passedTests: challengeSpec.tests.length,
-      totalTests: challengeSpec.tests.length,
-    });
+      const res = await fetch('/api/practice/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: userCode,
+          language: 'javascript',
+          testCases: testCasesToRun
+        })
+      });
 
-    setIsRunning(false);
-    setEvidenceRecorded(true);
+      if (!res.ok) {
+        throw new Error('Code execution service returned an error status: ' + res.status);
+      }
 
-    const testLines = challengeSpec.tests.map((t, idx) => `✔ Test ${idx + 1}: ${t}`).join('\n');
-    setTestOutput(`RUNNING TEST SUITE: ${activeSkill.toLowerCase().replace(/[^a-z0-9]/g, '_')}_spec.ts
+      const execResult = await res.json();
+
+      if (execResult.status === 'SECURITY_VIOLATION') {
+        setTestOutput(`SECURITY VIOLATION DETECTED:
+--------------------------------------------------
+${execResult.error || 'Blocked forbidden system calls or unsafe syntax.'}
+
+Execution halted to protect system environment.`);
+        setIsRunning(false);
+        return;
+      }
+
+      const score = execResult.totalTestCases > 0
+        ? Math.round((execResult.testCasesPassed / execResult.totalTestCases) * 100)
+        : (execResult.status === 'ACCEPTED' ? 100 : 0);
+
+      // Record verified practice evidence in state & Supabase
+      if (score > 0) {
+        await recordPracticeCompletion(activeSkill, score, {
+          challengeTitle: challengeSpec.title,
+          passedTests: execResult.testCasesPassed,
+          totalTests: execResult.totalTestCases,
+        });
+        setEvidenceRecorded(true);
+      }
+
+      const testLines = execResult.tests && execResult.tests.length > 0
+        ? execResult.tests.map((t: any, idx: number) => `${t.passed ? '✔' : '✖'} Test ${idx + 1}: ${t.name} (${t.executionTimeMs}ms)${t.error ? ' - ' + t.error : ''}`).join('\n')
+        : (execResult.status === 'ACCEPTED' ? '✔ All basic syntax and sandbox assertions passed.' : `✖ Runtime failure: ${execResult.error || 'Failed assertions'}`);
+
+      setTestOutput(`SANDBOX RUNNER: node-vm20 (Isolated AST Sandbox)
 --------------------------------------------------
 ${testLines}
 
-STATUS: ACCEPTED (100 / 100 POINTS)
-${challengeSpec.tests.length} / ${challengeSpec.tests.length} TESTS PASSED &bull; Execution Runtime: 32 ms
-Evidence Recorded: ${activeSkill} Competency Calibrated in Passport & Skill Analyzer.`);
+STATUS: ${execResult.status} (${score} / 100 POINTS)
+${execResult.testCasesPassed} / ${execResult.totalTestCases} TESTS PASSED • Execution Runtime: ${execResult.executionTimeMs} ms
+${score > 0 ? `Evidence Recorded: ${activeSkill} Competency Calibrated in Passport & Skill Analyzer.` : 'Fix test failures and re-run.'}`);
+    } catch (err: any) {
+      console.error('Practice execution failed:', err);
+      setTestOutput(`SANDBOX EXECUTION ERROR:
+--------------------------------------------------
+Code execution is temporarily unavailable. Error: ${err?.message || 'Network error'}`);
+    } finally {
+      setIsRunning(false);
+    }
   };
 
   return (

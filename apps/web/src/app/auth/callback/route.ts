@@ -123,11 +123,12 @@ export async function GET(request: Request) {
           return NextResponse.redirect(createRedirectUrl(origin, '/onboarding'));
         }
 
-        // 3. Post-authentication destination returns user to home page / as per architecture specification
-        return NextResponse.redirect(createRedirectUrl(origin, '/'));
+        // 3. Post-authentication destination: default to dashboard or onboarding
+        const defaultDest = mode === 'signup' && !existingProfile?.target_role_id ? '/onboarding' : '/app/dashboard';
+        return NextResponse.redirect(createRedirectUrl(origin, defaultDest));
       } catch (profileErr) {
         console.error('Profile verification or creation error:', profileErr);
-        return NextResponse.redirect(createRedirectUrl(origin, '/'));
+        return NextResponse.redirect(createRedirectUrl(origin, '/app/dashboard'));
       }
     }
   }

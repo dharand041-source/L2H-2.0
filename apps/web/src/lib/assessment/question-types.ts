@@ -2,7 +2,27 @@
  * LEARN-2-HIRE 2.0: UNIVERSAL ASSESSMENT TAXONOMY & ENGINE CONTRACTS
  */
 
-export type AssessmentDifficulty = 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
+export type AssessmentDifficulty = 'L0' | 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
+
+export type CandidateEntryLevel = 'BEGINNER' | 'AMATEUR' | 'PROFESSIONAL';
+
+export interface CalibrationAnswers {
+  priorStudy: 'none' | 'basics' | 'projects' | 'professional';
+  learningDuration: 'not_yet' | 'under_3_months' | '3_to_12_months' | 'over_1_year' | 'professional';
+  builtProjects: boolean;
+  workedProfessionally: boolean;
+  techComfort: 'very_new' | 'beginner' | 'comfortable' | 'advanced';
+}
+
+export type AssessmentSection =
+  | 'CAREER_FUNDAMENTALS'
+  | 'ROLE_KNOWLEDGE'
+  | 'CORE_SKILL'
+  | 'APPLIED_PROBLEM_SOLVING'
+  | 'CODING_PRACTICAL'
+  | 'APTITUDE'
+  | 'LOGICAL_REASONING'
+  | 'ROLE_SCENARIO';
 
 export type QuestionDomainType =
   | 'MCQ'
@@ -39,13 +59,19 @@ export type QuestionSourceTag =
   | 'PATTERN_INSPIRED'
   | 'CURATED_COMPANY_PATTERN'
   | 'VERIFIED_PUBLIC_REPORT'
-  | 'COMMUNITY_REPORTED';
+  | 'COMMUNITY_REPORTED'
+  | 'GFG_REFERENCE'
+  | 'GEEKSFORGEEKS_REFERENCE'
+  | 'W3SCHOOLS_REFERENCE'
+  | 'MDN_REFERENCE'
+  | 'OFFICIAL_DOCUMENTATION';
 
 export interface AssessmentQuestion {
   id: string;
   careerRoleSlug: string;
   skillName: string;
   competency: string;
+  section?: AssessmentSection;
   topic: string;
   subtopic?: string;
   difficulty: AssessmentDifficulty;
@@ -91,13 +117,15 @@ export interface BlueprintSkillRequirement {
   skillName: string;
   targetDifficulty: AssessmentDifficulty;
   count: number;
-  category: 'CORE' | 'BREADTH' | 'APPLIED' | 'REASONING';
+  category: 'CORE' | 'BREADTH' | 'APPLIED' | 'REASONING' | 'FUNDAMENTALS';
+  section?: AssessmentSection;
 }
 
 export interface DynamicAssessmentBlueprint {
   id: string;
   careerRoleSlug: string;
   title: string;
+  entryLevel?: CandidateEntryLevel;
   totalQuestions: number;
   durationMinutes: number;
   passingScore: number;
@@ -106,6 +134,9 @@ export interface DynamicAssessmentBlueprint {
 
 export interface EvaluationResult {
   score: number;
+  weightedScore?: number;
+  entryLevel?: CandidateEntryLevel;
+  demonstratedLevel?: AssessmentDifficulty;
   passed: boolean;
   accuracy: number;
   totalQuestions: number;
@@ -124,7 +155,7 @@ export interface EvaluationResult {
     skill: string;
     topic: string;
     title: string;
-    provider: 'GeeksforGeeks' | 'W3Schools' | 'MDN Web Docs' | 'freeCodeCamp' | 'CS50' | 'SQLBolt';
+    provider: 'GeeksforGeeks' | 'W3Schools' | 'MDN Web Docs' | 'freeCodeCamp' | 'CS50' | 'SQLBolt' | 'Official Documentation';
     url: string;
     description: string;
   }>;

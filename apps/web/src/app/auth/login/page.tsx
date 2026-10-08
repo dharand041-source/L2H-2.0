@@ -58,7 +58,7 @@ function LoginForm() {
       }
 
       if (data.session) {
-        router.push(next || '/');
+        router.push(next || ROUTES.app.dashboard);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An unexpected authentication error occurred.';
@@ -75,9 +75,7 @@ function LoginForm() {
     try {
       const callbackUrl = new URL('/auth/callback', window.location.origin);
       callbackUrl.searchParams.set('mode', 'signin');
-      if (next) {
-        callbackUrl.searchParams.set('next', next);
-      }
+      callbackUrl.searchParams.set('next', next || ROUTES.app.dashboard);
 
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',

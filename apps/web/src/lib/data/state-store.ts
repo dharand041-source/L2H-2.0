@@ -714,6 +714,8 @@ export function useCandidateState() {
   const recordAssessmentCompletion = async (
     score: number,
     details?: {
+      entryLevel?: 'BEGINNER' | 'AMATEUR' | 'PROFESSIONAL';
+      calibratedLevel?: 'L0' | 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
       questions?: Array<{ id: string; prompt: string }>;
       answers?: Record<string, string>;
       calibratedSkills?: Array<{
@@ -735,8 +737,9 @@ export function useCandidateState() {
     const currentSlug = globalCandidateState.targetCareerSlug;
     const role = getCareerBySlug(currentSlug);
     const roleTitle = role ? role.title : 'Full-Stack Developer';
+    const roleUuid = getRoleUuid(currentSlug);
 
-    const achievedLevel = score >= 85 ? 'L4' : score >= 70 ? 'L3' : score >= 50 ? 'L2' : 'L1';
+    const achievedLevel = details?.calibratedLevel || (score >= 85 ? 'L4' : score >= 70 ? 'L3' : score >= 50 ? 'L2' : 'L1');
     const achievedLvlNum = parseInt(achievedLevel.replace('L', ''), 10);
 
     const updatedSkills: UserSkillItem[] = globalCandidateState.skills.map((s) => {
@@ -803,7 +806,7 @@ export function useCandidateState() {
               normalized_hash: sq.normalizedHash,
               question_family: sq.questionFamily || 'GENERAL',
               variant_group_id: sq.variantGroupId || 'VAR_GEN',
-              career_role_id: '50000000-0000-0000-0000-000000000001',
+              career_role_id: roleUuid,
               answered_correctly: sq.correct ?? true,
               score: sq.score ?? 100,
               time_taken_seconds: 60,
@@ -821,9 +824,16 @@ export function useCandidateState() {
           .insert({
             user_id: user.id,
             blueprint_id: '60000000-0000-0000-0000-000000000001',
+            career_role_id: roleUuid,
             title: `${roleTitle} Baseline Diagnostic`,
             status: 'COMPLETED',
+            entry_level: details?.entryLevel || 'AMATEUR',
+            calibrated_level: achievedLevel,
             score: score,
+            weighted_score: score,
+            readiness_score: newReadiness,
+            question_count: details?.seenQuestions?.length || 5,
+            correct_count: details?.seenQuestions?.filter(q => q.correct).length || 0,
             passed: score >= 60,
             completed_at: new Date().toISOString(),
           })

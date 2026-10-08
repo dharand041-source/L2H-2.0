@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Clock,
   ShieldCheck,
@@ -12,14 +13,23 @@ import {
   Terminal,
   HelpCircle,
   Sparkles,
-  BookOpen
+  BookOpen,
+  Compass,
+  Award,
+  Layers,
+  Info
 } from 'lucide-react';
 import {
   generateAssessmentBlueprint,
   buildAssessmentSession,
   evaluateAssessmentSession,
+  calculateInitialEntryLevel,
+  adaptDifficulty,
   AssessmentQuestion,
-  UserHistoryRecord
+  UserHistoryRecord,
+  CandidateEntryLevel,
+  CalibrationAnswers,
+  AssessmentDifficulty
 } from '@/lib/assessment';
 import { useCandidateState } from '@/lib/data/state-store';
 import { getCareerBySlug } from '@/lib/data/careers-data';
@@ -28,15 +38,42 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
+type AssessmentFlowStage = 'ROLE_INTRO' | 'CALIBRATION' | 'ASSESSMENT';
+
 export default function BaselineAssessmentRunnerPage() {
   const router = useRouter();
   const { state, recordAssessmentCompletion } = useCandidateState();
   const roleSlug = state.targetCareerSlug || 'full-stack-developer';
   const currentRole = getCareerBySlug(roleSlug);
 
-  // Build dynamic blueprint and session dynamically for the current career role
+  // Flow Stage: INTRO -> CALIBRATION -> ASSESSMENT
+  const [flowStage, setFlowStage] = useState<AssessmentFlowStage>('ROLE_INTRO');
+
+  // Calibration State
+  const [calibrationAnswers, setCalibrationAnswers] = useState<CalibrationAnswers>({
+    priorStudy: 'none',
+    learningDuration: 'not_yet',
+    builtProjects: false,
+    workedProfessionally: false,
+    techComfort: 'beginner',
+  });
+
+  const [calibratedEntryLevel, setCalibratedEntryLevel] = useState<CandidateEntryLevel>('BEGINNER');
+
+  // Load saved calibration state from session if available
+  useEffect(() => {
+    try {
+      const savedLevel = sessionStorage.getItem(`l2h_calibrated_level_${roleSlug}`) as CandidateEntryLevel;
+      if (savedLevel && ['BEGINNER', 'AMATEUR', 'PROFESSIONAL'].includes(savedLevel)) {
+        setCalibratedEntryLevel(savedLevel);
+        setFlowStage('ASSESSMENT');
+      }
+    } catch {}
+  }, [roleSlug]);
+
+  // Build dynamic blueprint and session dynamically for the current career role and entry level
   const testQuestions = useMemo(() => {
-    const blueprint = generateAssessmentBlueprint(roleSlug, 'BASELINE', 'MEDIUM');
+    const blueprint = generateAssessmentBlueprint(roleSlug, 'BASELINE', 'MEDIUM', calibratedEntryLevel);
     const existingHistory: UserHistoryRecord[] = (state.seenQuestionIds || []).map((id) => ({
       questionId: id,
       normalizedHash: id,
@@ -46,14 +83,20 @@ export default function BaselineAssessmentRunnerPage() {
       answeredCorrectly: true,
       timeTakenSeconds: 45,
     }));
-    return buildAssessmentSession(blueprint, existingHistory);
-  }, [roleSlug, state.seenQuestionIds]);
+    return buildAssessmentSession(blueprint, existingHistory, calibratedEntryLevel);
+  }, [roleSlug, state.seenQuestionIds, calibratedEntryLevel]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
+  const [revealedExplanation, setRevealedExplanation] = useState<string | null>(null);
   const [timeRemaining, setTimeRemaining] = useState(1500); // 25 mins
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Difficulty tracking for micro-adaptation
+  const [correctStreak, setCorrectStreak] = useState(0);
+  const [incorrectStreak, setIncorrectStreak] = useState(0);
+  const [currentDiff, setCurrentDiff] = useState<AssessmentDifficulty>('L1');
 
   // Hydrate answers from sessionStorage to survive page refresh
   useEffect(() => {
@@ -75,18 +118,17 @@ export default function BaselineAssessmentRunnerPage() {
       } else {
         setCurrentIndex(0);
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [roleSlug]);
 
   // Timer countdown
   useEffect(() => {
+    if (flowStage !== 'ASSESSMENT') return;
     const timer = setInterval(() => {
       setTimeRemaining((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [flowStage]);
 
   const formatTime = (secs: number) => {
     const mins = Math.floor(secs / 60);
@@ -96,6 +138,19 @@ export default function BaselineAssessmentRunnerPage() {
 
   const currentQ = testQuestions[currentIndex] || testQuestions[0];
   const totalQuestions = testQuestions.length;
+
+  const handleStartCalibration = () => {
+    setFlowStage('CALIBRATION');
+  };
+
+  const handleCompleteCalibration = () => {
+    const { entryLevel } = calculateInitialEntryLevel(calibrationAnswers);
+    setCalibratedEntryLevel(entryLevel);
+    try {
+      sessionStorage.setItem(`l2h_calibrated_level_${roleSlug}`, entryLevel);
+    } catch {}
+    setFlowStage('ASSESSMENT');
+  };
 
   const handleSelectOption = (option: string) => {
     if (isSaving || isSubmitting) return;
@@ -107,11 +162,14 @@ export default function BaselineAssessmentRunnerPage() {
       };
       try {
         sessionStorage.setItem(`l2h_baseline_answers_${roleSlug}`, JSON.stringify(next));
-      } catch {
-        // ignore
-      }
+      } catch {}
       return next;
     });
+
+    // Beginner education mode: show concept explanation after answer selection
+    if (calibratedEntryLevel === 'BEGINNER' && currentQ.explanation) {
+      setRevealedExplanation(currentQ.explanation);
+    }
   };
 
   const handleNext = async () => {
@@ -119,18 +177,31 @@ export default function BaselineAssessmentRunnerPage() {
     if (!currentAnswer || isSaving || isSubmitting) return;
 
     setIsSaving(true);
-    // Explicit async persistence tick to ensure answer is written and prevent duplicate next
+
+    // Update streak tracking for micro-adaptation
+    const isCorrect = currentAnswer === currentQ.correctAnswer;
+    if (isCorrect) {
+      const nextCorrect = correctStreak + 1;
+      setCorrectStreak(nextCorrect);
+      setIncorrectStreak(0);
+      setCurrentDiff(adaptDifficulty(currentQ.difficulty, nextCorrect, 0));
+    } else {
+      const nextIncorrect = incorrectStreak + 1;
+      setIncorrectStreak(nextIncorrect);
+      setCorrectStreak(0);
+      setCurrentDiff(adaptDifficulty(currentQ.difficulty, 0, nextIncorrect));
+    }
+
     try {
       sessionStorage.setItem(`l2h_baseline_answers_${roleSlug}`, JSON.stringify(selectedAnswers));
       sessionStorage.setItem(`l2h_baseline_idx_${roleSlug}`, String(currentIndex + 1));
-    } catch {
-      // ignore
-    }
+    } catch {}
 
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 150));
 
     if (currentIndex < totalQuestions - 1) {
       setCurrentIndex((prev) => prev + 1);
+      setRevealedExplanation(null);
     }
     setIsSaving(false);
   };
@@ -142,11 +213,10 @@ export default function BaselineAssessmentRunnerPage() {
         const next = prev - 1;
         try {
           sessionStorage.setItem(`l2h_baseline_idx_${roleSlug}`, String(next));
-        } catch {
-          // ignore
-        }
+        } catch {}
         return next;
       });
+      setRevealedExplanation(null);
     }
   };
 
@@ -157,8 +227,13 @@ export default function BaselineAssessmentRunnerPage() {
     setIsSubmitting(true);
 
     try {
-      // Evaluate dynamically using the universal evaluation engine
-      const evalResult = evaluateAssessmentSession(testQuestions, selectedAnswers, roleSlug);
+      // Evaluate dynamically using the adaptive evaluation engine
+      const evalResult = evaluateAssessmentSession(
+        testQuestions,
+        selectedAnswers,
+        roleSlug,
+        calibratedEntryLevel
+      );
 
       // Prepare seen questions for anti-repetition registry
       const seenQuestionsPayload = testQuestions.map((q) => ({
@@ -172,6 +247,8 @@ export default function BaselineAssessmentRunnerPage() {
 
       // Commit results to state store and Supabase persistence
       await recordAssessmentCompletion(evalResult.score, {
+        entryLevel: calibratedEntryLevel,
+        calibratedLevel: evalResult.demonstratedLevel || 'L1',
         questions: testQuestions.map((q) => ({ id: q.id, prompt: q.questionText || q.prompt || '' })),
         answers: selectedAnswers,
         calibratedSkills: evalResult.skillBreakdown.map((sb) => ({
@@ -187,9 +264,7 @@ export default function BaselineAssessmentRunnerPage() {
       try {
         sessionStorage.removeItem(`l2h_baseline_answers_${roleSlug}`);
         sessionStorage.removeItem(`l2h_baseline_idx_${roleSlug}`);
-      } catch {
-        // ignore
-      }
+      } catch {}
 
       setTimeout(() => {
         router.push(ROUTES.app.assessments.results('baseline'));
@@ -200,10 +275,290 @@ export default function BaselineAssessmentRunnerPage() {
     }
   };
 
+  // =========================================================================
+  // VIEW 1: ROLE INTRODUCTION (Step 12)
+  // =========================================================================
+  if (flowStage === 'ROLE_INTRO') {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
+        <div className="bg-brand-paper border-[1.5px] border-brand-ink p-6 sm:p-8 shadow-editorial space-y-6">
+          <div className="flex items-center gap-2">
+            <span className="editorial-badge bg-brand-orange text-white text-xs">
+              Adaptive Baseline Assessment
+            </span>
+            <span className="text-xs font-mono text-brand-ink/70 font-bold uppercase tracking-wider">
+              Diagnostic Mode
+            </span>
+          </div>
+
+          <div>
+            <span className="text-xs font-extrabold uppercase tracking-widest text-brand-ink/60 block">
+              Your Selected Career
+            </span>
+            <h1 className="font-display text-3xl sm:text-4xl font-bold uppercase text-brand-ink mt-1">
+              {currentRole?.title || 'Full-Stack Developer'}
+            </h1>
+            <p className="text-sm text-brand-ink/80 mt-2 leading-relaxed">
+              {currentRole?.shortDesc || currentRole?.description}
+            </p>
+          </div>
+
+          {/* Tested competencies */}
+          <div className="p-4 bg-brand-cream border border-brand-ink/30 space-y-3">
+            <h2 className="text-xs font-extrabold uppercase tracking-widest text-brand-ink">
+              What You Will Be Tested On
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {currentRole?.requiredSkills.map((s) => (
+                <Badge key={s.name} variant="default" className="text-xs">
+                  {s.name} ({s.level})
+                </Badge>
+              ))}
+              <Badge variant="paper" className="text-xs">Aptitude &amp; Reasoning</Badge>
+            </div>
+          </div>
+
+          {/* Beginner reassurance */}
+          <div className="p-4 border-[1.5px] border-brand-ink bg-brand-yellow/20 space-y-1">
+            <div className="flex items-center gap-2 text-sm font-bold text-brand-ink">
+              <Sparkles className="w-4 h-4 text-brand-orange shrink-0" />
+              <span>No Prior Experience? That&apos;s Completely Okay.</span>
+            </div>
+            <p className="text-xs text-brand-ink/80 leading-relaxed">
+              This diagnostic assessment begins from the fundamentals and adapts to your current level.
+              Your score is not a judgment or a pass/fail test—it is your baseline starting map.
+            </p>
+          </div>
+
+          {/* Assessment attributes */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs font-mono text-brand-ink/80">
+            <div className="p-3 border border-brand-ink/20 bg-brand-paper">
+              <span className="text-[10px] uppercase text-brand-ink/50 block">Estimated Time</span>
+              <span className="font-bold">20-30 Minutes</span>
+            </div>
+            <div className="p-3 border border-brand-ink/20 bg-brand-paper">
+              <span className="text-[10px] uppercase text-brand-ink/50 block">Question Delivery</span>
+              <span className="font-bold">Adaptive Ladder</span>
+            </div>
+            <div className="p-3 border border-brand-ink/20 bg-brand-paper">
+              <span className="text-[10px] uppercase text-brand-ink/50 block">Practical/Coding</span>
+              <span className="font-bold">Level-Calibrated</span>
+            </div>
+          </div>
+
+          <div className="pt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-brand-ink/10">
+            <Link href={ROUTES.app.career.discover}>
+              <Button variant="outline" size="md">
+                &larr; Change Career Role
+              </Button>
+            </Link>
+            <Button variant="primary" size="lg" onClick={handleStartCalibration}>
+              Let&apos;s Find Your Starting Point &rarr;
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // VIEW 2: SELF-REPORTED CAREER CALIBRATION (Step 3)
+  // =========================================================================
+  if (flowStage === 'CALIBRATION') {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
+        <div className="bg-brand-paper border-[1.5px] border-brand-ink p-6 sm:p-8 shadow-editorial space-y-6">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="editorial-badge bg-brand-rose text-white text-[10px]">
+                Calibration Stage
+              </span>
+              <span className="text-xs font-mono text-brand-ink/60 font-bold uppercase">
+                Zero-Penalty Diagnostics
+              </span>
+            </div>
+            <h1 className="font-display text-2xl sm:text-3xl font-bold uppercase text-brand-ink">
+              Let&apos;s Find Your Starting Point
+            </h1>
+            <p className="text-xs sm:text-sm text-brand-ink/80 mt-1">
+              Don&apos;t worry if you&apos;re new to this career. This assessment adapts to your current level.
+              Your answers here initialize question difficulty without penalizing your baseline score.
+            </p>
+          </div>
+
+          <div className="space-y-5 pt-2">
+            {/* Question 1 */}
+            <div className="space-y-2 p-4 border border-brand-ink/20 bg-brand-cream/60">
+              <label className="text-xs font-bold text-brand-ink uppercase block">
+                1. Have you studied this field before?
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  { value: 'none', label: "No, I'm completely new" },
+                  { value: 'basics', label: 'I know the basics' },
+                  { value: 'projects', label: 'I have practiced projects' },
+                  { value: 'professional', label: 'I have professional experience' },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setCalibrationAnswers((p) => ({ ...p, priorStudy: opt.value as any }))}
+                    className={`p-3 text-left border text-xs font-medium transition-all ${
+                      calibrationAnswers.priorStudy === opt.value
+                        ? 'bg-brand-orange text-white border-brand-ink font-bold shadow-sm'
+                        : 'bg-brand-paper text-brand-ink border-brand-ink/40 hover:border-brand-ink'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Question 2 */}
+            <div className="space-y-2 p-4 border border-brand-ink/20 bg-brand-cream/60">
+              <label className="text-xs font-bold text-brand-ink uppercase block">
+                2. How long have you been learning this area?
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[
+                  { value: 'not_yet', label: 'Not yet' },
+                  { value: 'under_3_months', label: 'Less than 3 months' },
+                  { value: '3_to_12_months', label: '3-12 months' },
+                  { value: 'over_1_year', label: 'More than 1 year' },
+                  { value: 'professional', label: 'Professional experience' },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setCalibrationAnswers((p) => ({ ...p, learningDuration: opt.value as any }))}
+                    className={`p-2.5 text-left border text-xs font-medium transition-all ${
+                      calibrationAnswers.learningDuration === opt.value
+                        ? 'bg-brand-orange text-white border-brand-ink font-bold shadow-sm'
+                        : 'bg-brand-paper text-brand-ink border-brand-ink/40 hover:border-brand-ink'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Question 3 & 4 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2 p-4 border border-brand-ink/20 bg-brand-cream/60">
+                <label className="text-xs font-bold text-brand-ink uppercase block">
+                  3. Have you built anything in this area?
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCalibrationAnswers((p) => ({ ...p, builtProjects: true }))}
+                    className={`flex-1 p-2.5 text-center border text-xs font-medium ${
+                      calibrationAnswers.builtProjects
+                        ? 'bg-brand-orange text-white border-brand-ink font-bold'
+                        : 'bg-brand-paper text-brand-ink border-brand-ink/40'
+                    }`}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCalibrationAnswers((p) => ({ ...p, builtProjects: false }))}
+                    className={`flex-1 p-2.5 text-center border text-xs font-medium ${
+                      !calibrationAnswers.builtProjects
+                        ? 'bg-brand-orange text-white border-brand-ink font-bold'
+                        : 'bg-brand-paper text-brand-ink border-brand-ink/40'
+                    }`}
+                  >
+                    No
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2 p-4 border border-brand-ink/20 bg-brand-cream/60">
+                <label className="text-xs font-bold text-brand-ink uppercase block">
+                  4. Worked professionally in this area?
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCalibrationAnswers((p) => ({ ...p, workedProfessionally: true }))}
+                    className={`flex-1 p-2.5 text-center border text-xs font-medium ${
+                      calibrationAnswers.workedProfessionally
+                        ? 'bg-brand-orange text-white border-brand-ink font-bold'
+                        : 'bg-brand-paper text-brand-ink border-brand-ink/40'
+                    }`}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCalibrationAnswers((p) => ({ ...p, workedProfessionally: false }))}
+                    className={`flex-1 p-2.5 text-center border text-xs font-medium ${
+                      !calibrationAnswers.workedProfessionally
+                        ? 'bg-brand-orange text-white border-brand-ink font-bold'
+                        : 'bg-brand-paper text-brand-ink border-brand-ink/40'
+                    }`}
+                  >
+                    No
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Question 5 */}
+            <div className="space-y-2 p-4 border border-brand-ink/20 bg-brand-cream/60">
+              <label className="text-xs font-bold text-brand-ink uppercase block">
+                5. How comfortable are you with technical concepts?
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { value: 'very_new', label: 'Very new' },
+                  { value: 'beginner', label: 'Beginner' },
+                  { value: 'comfortable', label: 'Comfortable' },
+                  { value: 'advanced', label: 'Advanced' },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setCalibrationAnswers((p) => ({ ...p, techComfort: opt.value as any }))}
+                    className={`p-2.5 text-center border text-xs font-medium transition-all ${
+                      calibrationAnswers.techComfort === opt.value
+                        ? 'bg-brand-orange text-white border-brand-ink font-bold shadow-sm'
+                        : 'bg-brand-paper text-brand-ink border-brand-ink/40 hover:border-brand-ink'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-4 flex items-center justify-between border-t border-brand-ink/10">
+            <Button variant="outline" size="md" onClick={() => setFlowStage('ROLE_INTRO')}>
+              &larr; Back
+            </Button>
+            <Button variant="primary" size="lg" onClick={handleCompleteCalibration}>
+              Start Calibrated Assessment &rarr;
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // VIEW 3: ADAPTIVE QUESTION RUNNER (Steps 13, 50, 72)
+  // =========================================================================
   if (!currentQ) {
     return (
-      <div className="py-20 text-center">
-        <h2 className="font-display text-2xl uppercase">No questions loaded</h2>
+      <div className="py-20 text-center space-y-4">
+        <h2 className="font-display text-2xl uppercase">No questions loaded for this profile</h2>
+        <Button variant="primary" onClick={() => setFlowStage('ROLE_INTRO')}>
+          Reset Calibration
+        </Button>
       </div>
     );
   }
@@ -213,28 +568,47 @@ export default function BaselineAssessmentRunnerPage() {
   const currentAnswer = selectedAnswers[currentQ.id];
   const hasAnsweredCurrent = Boolean(currentAnswer && currentAnswer.trim().length > 0);
 
+  // Friendly challenge label (avoid intimidating novices)
+  const challengeLabel =
+    currentQ.difficulty === 'L0' || currentQ.difficulty === 'L1'
+      ? 'FOUNDATION'
+      : currentQ.difficulty === 'L2' || currentQ.difficulty === 'L3'
+      ? 'APPLIED'
+      : 'ADVANCED';
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Assessment Top Bar */}
       <div className="bg-brand-paper border-[1.5px] border-brand-ink p-4 shadow-editorial flex flex-wrap items-center justify-between gap-4">
         <div>
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-ink/60 block">
-            {currentRole?.title || 'Full-Stack Developer'} Baseline Diagnostic
-          </span>
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-ink/60">
+              {currentRole?.title || 'Full-Stack Developer'}
+            </span>
+            <Badge variant="yellow" className="text-[10px]">
+              {calibratedEntryLevel} CALIBRATION
+            </Badge>
+          </div>
           <h1 className="font-display text-xl font-bold uppercase text-brand-ink">
             Question {currentIndex + 1} of {totalQuestions}
           </h1>
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Challenge Level Badge */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-brand-cream border border-brand-ink/30 text-xs font-mono font-bold text-brand-ink">
+            <Layers className="w-3.5 h-3.5 text-brand-orange" />
+            <span>Challenge: {challengeLabel}</span>
+          </div>
+
           {/* Timer */}
           <div className="flex items-center gap-1.5 px-3 py-1 bg-brand-cream border border-brand-ink text-xs font-mono font-bold text-brand-ink">
             <Clock className="w-3.5 h-3.5 text-brand-orange" />
             <span>{formatTime(timeRemaining)}</span>
           </div>
 
-          {/* Answered Progress */}
-          <span className="text-xs font-semibold text-brand-ink/70">
+          {/* Progress */}
+          <span className="text-xs font-semibold text-brand-ink/70 hidden sm:inline">
             {answeredCount} / {totalQuestions} Answered
           </span>
         </div>
@@ -246,20 +620,22 @@ export default function BaselineAssessmentRunnerPage() {
         <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-brand-ink/10">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="default">{currentQ.skillName}</Badge>
-            <Badge level={currentQ.targetLevel as any}>{currentQ.difficulty} ({currentQ.targetLevel})</Badge>
-            <Badge variant="paper">{currentQ.questionType.replace('_', ' ')}</Badge>
+            {currentQ.section && (
+              <Badge variant="paper">{currentQ.section.replace(/_/g, ' ')}</Badge>
+            )}
+            <Badge level={currentQ.targetLevel as any}>{currentQ.difficulty}</Badge>
             <span className="text-xs font-semibold text-brand-ink/60">
               Topic: {currentQ.topic}
             </span>
           </div>
           <span className="text-[10px] font-mono text-brand-ink/50 uppercase">
-            Family: {currentQ.questionFamily}
+            Source: {currentQ.sourceType.replace(/_/g, ' ')}
           </span>
         </div>
 
         {/* Prompt */}
         <h2 className="text-lg sm:text-xl font-semibold text-brand-ink leading-relaxed">
-          {currentQ.questionText || (currentQ as any).prompt}
+          {currentQ.questionText || currentQ.prompt}
         </h2>
 
         {/* Code Snippet (if provided) */}
@@ -295,13 +671,22 @@ export default function BaselineAssessmentRunnerPage() {
                 >
                   {letter}
                 </span>
-                <span className="text-sm font-medium leading-relaxed">
-                  {option}
-                </span>
+                <span className="text-sm font-medium leading-relaxed">{option}</span>
               </button>
             );
           })}
         </div>
+
+        {/* Beginner Education Mode: Pedagogical Explanation Box (Step 72) */}
+        {revealedExplanation && (
+          <div className="p-4 border-[1.5px] border-brand-ink bg-brand-paper shadow-sm space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-brand-ink uppercase">
+              <Info className="w-3.5 h-3.5 text-brand-orange" />
+              <span>Concept Being Tested</span>
+            </div>
+            <p className="text-xs text-brand-ink/80 leading-relaxed">{revealedExplanation}</p>
+          </div>
+        )}
 
         {/* Navigation Controls: Strict Next/Submit Button State Machine */}
         <div className="pt-6 border-t border-brand-ink/20 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">

@@ -5,6 +5,15 @@ export const metadata: Metadata = {
   title: 'Learn-2-Hire | End-to-End Career Development & Employment Platform',
   description:
     'Discover career requirements, take baseline assessments, bridge skill gaps with open curricula, build verified projects, prepare for company interview patterns, and apply directly to matching opportunities.',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '32x32' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/favicon.svg',
+  },
+  manifest: '/site.webmanifest',
   openGraph: {
     title: 'Learn-2-Hire | Learn. Prove. Get Hired.',
     description: 'The end-to-end career intelligence and employment ecosystem.',

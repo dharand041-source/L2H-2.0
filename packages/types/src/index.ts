@@ -318,15 +318,34 @@ export interface AssessmentBlueprint {
   }>;
 }
 
+export type CandidateEntryLevel = 'BEGINNER' | 'AMATEUR' | 'PROFESSIONAL';
+
+export interface CalibrationAnswers {
+  priorStudy: 'none' | 'basics' | 'projects' | 'professional';
+  learningDuration: 'not_yet' | 'under_3_months' | '3_to_12_months' | 'over_1_year' | 'professional';
+  builtProjects: boolean;
+  workedProfessionally: boolean;
+  techComfort: 'very_new' | 'beginner' | 'comfortable' | 'advanced';
+}
+
 export interface AssessmentAttempt {
   id: UUID;
   userId: UUID;
   blueprintId: UUID;
+  careerRoleId?: UUID;
   title: string;
   status: 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED';
+  entryLevel?: CandidateEntryLevel;
+  calibratedLevel?: DifficultyLevel;
   score: number; // 0 - 100
+  weightedScore?: number;
   passed: boolean;
   totalTimeSeconds: number;
+  questionCount?: number;
+  correctCount?: number;
+  skillScores?: Record<string, number>;
+  readinessScore?: number;
+  metadata?: Record<string, any>;
   startedAt: ISODateString;
   completedAt?: ISODateString;
 }
