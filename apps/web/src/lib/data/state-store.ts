@@ -83,6 +83,7 @@ export interface CandidateState {
     opportunityId: string;
     company: string;
     title: string;
+    resumeVersionId?: string;
     status: 'SAVED' | 'APPLIED' | 'SCREENING' | 'INTERVIEW' | 'OFFER' | 'REJECTED';
     appliedDate: string;
     outcomeReason?: string;

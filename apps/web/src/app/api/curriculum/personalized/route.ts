@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generatePersonalizedRoadmap } from '@/lib/curriculum';
+import { generateCareerRoadmap } from '@/lib/roadmap';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
@@ -8,11 +8,12 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const targetRole = searchParams.get('career') || searchParams.get('role') || 'frontend-developer';
+    const targetRole = searchParams.get('career') || searchParams.get('role') || 'full-stack-developer';
 
     // Attempt to read current authenticated user session if available
     let userSkills: any[] = [];
     let assessmentScore: number | undefined = undefined;
+    let completedNodeIds: string[] = [];
 
     const cookieStore = await cookies();
     const supabase = createServerClient(
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
 
       if (dbSkills && dbSkills.length > 0) {
         userSkills = dbSkills.map((s) => ({
-          name: s.skill_id, // or lookup name
+          name: s.skill_id,
           currentLevel: s.current_level || 'L0',
           requiredLevel: 'L4',
           gap: 2,
@@ -68,26 +69,66 @@ export async function GET(request: NextRequest) {
           priority: 'HIGH',
         }));
       }
+
+      // Fetch completed path items
+      const { data: paths } = await supabase
+        .from('learning_paths')
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1);
+
+      if (paths && paths.length > 0) {
+        const { data: items } = await supabase
+          .from('learning_path_items')
+          .select('node_id, sequence_order')
+          .eq('learning_path_id', paths[0].id)
+          .eq('is_completed', true);
+
+        if (items) {
+          completedNodeIds = items.map((i) => i.node_id || String(i.sequence_order));
+        }
+      }
     }
 
     // Generate authoritative personalized roadmap
-    const roadmap = generatePersonalizedRoadmap(targetRole, userSkills, assessmentScore);
+    const roadmap = generateCareerRoadmap({
+      targetRoleSlug: targetRole,
+      userSkills,
+      assessmentScore,
+      completedNodeIds,
+    });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
+      career_role_slug: roadmap.careerRoleSlug,
+      career_role_id: roadmap.careerRoleId,
       career: roadmap.targetRoleTitle,
       target_role: roadmap.targetRoleTitle,
+      roadmap_version: roadmap.roadmapVersion,
+      source_version: roadmap.sourceVersion,
+      user_mode: roadmap.userMode,
       readiness: roadmap.readinessScore,
+      progress_percent: roadmap.progressPercent,
       is_assessed: roadmap.isAssessed,
-      total_modules: roadmap.totalModules,
-      completed_modules: roadmap.completedModules,
+      total_nodes: roadmap.totalNodes,
+      completed_nodes: roadmap.completedNodes,
       estimated_hours: roadmap.estimatedTotalHours,
       critical_gaps: roadmap.criticalGapsCount,
-      modules: roadmap.modules,
+      next_best_action: roadmap.nextBestAction,
+      phases: roadmap.phases,
+      weekly_plan: roadmap.weeklyPlan,
+      dependency_graph: roadmap.dependencyGraph,
     });
+
+    // Role-scoped caching headers with stale validation protection
+    response.headers.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=120');
+    response.headers.set('X-Career-Role-Id', roadmap.careerRoleId);
+    response.headers.set('X-Career-Role-Slug', roadmap.careerRoleSlug);
+
+    return response;
   } catch (error: any) {
-    console.error('Error generating personalized curriculum:', error);
+    console.error('Error generating personalized roadmap:', error);
     return NextResponse.json(
-      { error: 'Failed to generate personalized curriculum', details: error.message },
+      { error: 'Failed to generate personalized roadmap', details: error.message },
       { status: 500 }
     );
   }

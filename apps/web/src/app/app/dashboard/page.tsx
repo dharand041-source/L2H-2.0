@@ -26,6 +26,7 @@ import {
 import { useCandidateState, getNextBestAction } from '@/lib/data/state-store';
 import { getCareerBySlug } from '@/lib/data/careers-data';
 import { OPPORTUNITIES_CATALOG, getOpportunitiesByRole, calculateExplainableMatch } from '@/lib/data/opportunities-data';
+import { getRecommendedNextChallenge } from '@/lib/practice';
 import { ROUTES } from '@/lib/routes';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -274,6 +275,51 @@ export default function DashboardPage() {
               </Link>
             </div>
           </div>
+
+          {/* Next Recommended Role Practice Card (Step 43) */}
+          {(() => {
+            const nextPrac = getRecommendedNextChallenge(state.targetCareerSlug, state.skills);
+            if (!nextPrac) return null;
+            return (
+              <div className="border-[1.5px] border-brand-ink bg-brand-cream p-5 shadow-editorial space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="editorial-badge bg-brand-orange text-white text-[10px]">
+                      Next Recommended Practice
+                    </span>
+                    <span className="text-xs font-mono font-bold uppercase text-brand-ink">
+                      {currentRole?.title || 'Target Role'}
+                    </span>
+                  </div>
+                  <Badge variant="default">{nextPrac.difficulty}</Badge>
+                </div>
+
+                <div>
+                  <h3 className="font-display text-xl font-bold uppercase text-brand-ink">
+                    {nextPrac.title}
+                  </h3>
+                  <p className="text-xs text-brand-ink/80 mt-1 line-clamp-2">
+                    {nextPrac.description}
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-brand-ink/20">
+                  <div className="text-xs font-mono text-brand-ink/70">
+                    Skill Gap Target: <strong className="text-brand-orange">{nextPrac.skillName}</strong> ({nextPrac.targetLevel})
+                  </div>
+                  <Link
+                    href={`/app/practice/role?challengeId=${encodeURIComponent(
+                      nextPrac.id
+                    )}&category=${encodeURIComponent(nextPrac.categoryId)}`}
+                  >
+                    <Button variant="primary" size="sm">
+                      Start Practice →
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Quick Action Matrix for Connected System */}
           <div className="border-[1.5px] border-brand-ink bg-brand-paper p-6 shadow-editorial">

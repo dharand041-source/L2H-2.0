@@ -106,6 +106,11 @@ export default function ApplicationsHubPage() {
                 <h3 className="font-display text-2xl font-bold uppercase text-brand-ink">
                   {app.title}
                 </h3>
+                {app.resumeVersionId && (
+                  <div className="text-[11px] font-mono text-brand-ink/70 mt-0.5">
+                    Resume Document: <span className="font-bold text-brand-orange">{app.resumeVersionId}</span>
+                  </div>
+                )}
                 {app.outcomeReason && (
                   <div className="text-xs text-brand-rose font-medium mt-1">
                     Outcome Feedback: {app.outcomeReason}

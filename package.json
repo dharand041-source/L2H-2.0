@@ -16,7 +16,10 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:phase0": "node scripts/test-phase0.js",
-    "test:universal": "npx tsx scripts/test-universal-question-engine.ts"
+    "test:universal": "npx tsx scripts/test-universal-question-engine.ts",
+    "test:practice": "npx tsx scripts/test-role-practice-arena.ts",
+    "test:roadmap": "npx tsx scripts/test-roadmap-engine.ts",
+    "test:master": "npx tsx scripts/test-master-l2h-engine.ts"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

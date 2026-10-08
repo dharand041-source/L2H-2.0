@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   FileText,
@@ -9,63 +9,72 @@ import {
   ArrowRight,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
   RefreshCw,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  ChevronRight,
+  Briefcase
 } from 'lucide-react';
 import { useCandidateState } from '@/lib/data/state-store';
 import { ROUTES } from '@/lib/routes';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProgressRing } from '@/components/ui/progress-ring';
+import {
+  ResumeStore,
+  ResumeVersion,
+  parseJobDescription,
+  calculateATSAnalysis,
+  ATSAnalysisResult
+} from '@/lib/resume';
 
 export default function ResumeAnalyzerPage() {
-  const { state, updateState } = useCandidateState();
+  const { state } = useCandidateState();
+  const [activeVersion, setActiveVersion] = useState<ResumeVersion | null>(null);
 
-  const [jobDescription, setJobDescription] = useState(`Seeking a Junior to Mid-Level Full-Stack Engineer with strong capabilities in React, Next.js, Node.js, and PostgreSQL. 
+  const [jobDescription, setJobDescription] = useState(
+`Seeking a Junior to Mid-Level Full-Stack Engineer with strong capabilities in React, Next.js, Node.js, and SQL. 
 Experience with Docker containerization, RESTful API design, and automated testing (Jest/Playwright) is highly desired. 
-Must possess solid understanding of Git version control and CI/CD pipelines.`);
+Must possess solid understanding of Git version control. Minimum 1 year experience requested.`
+  );
 
   const [isScanning, setIsScanning] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<any | null>({
-    compatibilityScore: 88,
-    matchedKeywords: ['React', 'Next.js', 'Node.js', 'PostgreSQL', 'Git', 'RESTful API'],
-    missingKeywords: ['Docker Containerization', 'Playwright / Jest Testing', 'CI/CD Pipelines'],
-    roleAlignment: 'STRONG',
-    structureVerdict: 'Optimal Swiss Editorial Plain-Text formatting. Zero ATS parsing errors detected.',
-    recommendations: [
-      'Incorporate your Docker multi-stage container milestone in the capstone project description.',
-      'Explicitly cite your unit test coverage percentage (94%) from the verified rubric evaluation.'
-    ]
-  });
+  const [analysisResult, setAnalysisResult] = useState<ATSAnalysisResult | null>(null);
+
+  useEffect(() => {
+    const active = ResumeStore.getActiveVersion();
+    setActiveVersion(active);
+
+    if (active) {
+      // Auto analyze active version against default job spec
+      const parsedJob = parseJobDescription(jobDescription);
+      const result = calculateATSAnalysis(
+        active.id,
+        active.parsedData,
+        parsedJob,
+        state.targetCareerSlug
+      );
+      setAnalysisResult(result);
+    }
+  }, []);
 
   const handleScan = () => {
+    if (!activeVersion) return;
     setIsScanning(true);
-    setTimeout(() => {
-      setIsScanning(false);
-      setAnalysisResult({
-        compatibilityScore: 92,
-        matchedKeywords: ['React', 'Next.js', 'Node.js', 'PostgreSQL', 'Git', 'RESTful API', 'Docker'],
-        missingKeywords: ['Playwright / Jest Testing', 'CI/CD Pipelines'],
-        roleAlignment: 'EXCELLENT',
-        structureVerdict: 'Standard single-column structure parsed cleanly with 100% token extraction fidelity.',
-        recommendations: [
-          'Add your Playwright end-to-end testing suite to the project evidence section.',
-          'Ready for direct employer application.'
-        ]
-      });
 
-      updateState((prev) => ({
-        ...prev,
-        stage: 'OPPORTUNITY_READY',
-        resume: {
-          ...prev.resume,
-          status: 'READY',
-          compatibilityScore: 92,
-        }
-      }));
-    }, 1000);
+    setTimeout(() => {
+      const parsedJob = parseJobDescription(jobDescription);
+      const result = calculateATSAnalysis(
+        activeVersion.id,
+        activeVersion.parsedData,
+        parsedJob,
+        state.targetCareerSlug
+      );
+      ResumeStore.saveAnalysis(result);
+      setAnalysisResult(result);
+      setIsScanning(false);
+    }, 400);
   };
 
   return (
@@ -74,117 +83,285 @@ Must possess solid understanding of Git version control and CI/CD pipelines.`);
         <Link href={ROUTES.app.resume.home} className="text-xs font-bold uppercase text-brand-ink flex items-center gap-1.5">
           <ArrowLeft className="w-4 h-4" /> Back to Resume Hub
         </Link>
-        <span className="text-xs font-bold text-brand-orange uppercase">ATS Compatibility Engine</span>
+        <span className="text-xs font-bold text-brand-orange uppercase">
+          L2H ATS Compatibility Engine &bull; {analysisResult?.scoringModelVersion || 'ATS-L2H-2026.1'}
+        </span>
       </div>
 
       <div className="border-b-[1.5px] border-brand-ink pb-6">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="editorial-badge bg-brand-yellow text-brand-ink">
+            Configurable Scoring Model
+          </span>
+          <span className="text-xs font-mono text-brand-ink/70 font-bold uppercase tracking-wider">
+            Required vs Preferred Breakdown
+          </span>
+        </div>
         <h1 className="font-display text-4xl sm:text-5xl uppercase tracking-tight text-brand-ink">
           ATS &amp; Job Specification Scanner
         </h1>
         <p className="text-base text-brand-ink/80 max-w-2xl mt-1">
-          Paste any job description to evaluate keyword coverage, missing requirements, and role alignment without fabricated metrics.
+          Evaluate your actual resume against authentic job postings. We provide a transparent compatibility estimate and eligibility evaluation—not a fabricated employer score.
         </p>
       </div>
 
-      {/* Main Analysis Console */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left: Paste Job Description */}
-        <div className="lg:col-span-6 bg-brand-paper border-[1.5px] border-brand-ink p-6 shadow-editorial space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-extrabold uppercase tracking-widest text-brand-ink/70">
-              Paste Target Job Description:
-            </span>
-            <Badge variant="yellow">Live Tokenizer</Badge>
+      {!activeVersion ? (
+        <div className="bg-brand-paper border-[1.5px] border-brand-ink p-8 shadow-editorial text-center space-y-4">
+          <AlertCircle className="w-10 h-10 text-brand-orange mx-auto" />
+          <h2 className="font-display text-2xl font-bold uppercase text-brand-ink">
+            No Resume Version Available to Scan
+          </h2>
+          <p className="text-xs text-brand-ink/75 max-w-md mx-auto">
+            Please upload your resume document or paste plain text in the Resume Hub first before running ATS compatibility scans.
+          </p>
+          <Link href={ROUTES.app.resume.home}>
+            <Button variant="primary" size="md">
+              Go to Resume Hub &amp; Upload →
+            </Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {/* Main Console */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Left: Target Job Description Input */}
+            <div className="lg:col-span-6 bg-brand-paper border-[1.5px] border-brand-ink p-6 shadow-editorial space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase tracking-widest text-brand-ink/70">
+                  Target Job Description Spec:
+                </span>
+                <span className="text-[11px] font-mono text-brand-ink/60">
+                  Active Document: <strong className="text-brand-ink">{activeVersion.title}</strong>
+                </span>
+              </div>
+
+              <textarea
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value)}
+                rows={11}
+                className="w-full p-3 font-mono text-xs bg-brand-cream border border-brand-ink text-brand-ink focus:outline-none leading-relaxed"
+                placeholder="Paste authentic employer job description here..."
+              />
+
+              <Button
+                variant="primary"
+                size="md"
+                fullWidth
+                disabled={isScanning}
+                onClick={handleScan}
+              >
+                {isScanning ? (
+                  <span className="flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 animate-spin" /> Scanning Semantic Tokens...
+                  </span>
+                ) : (
+                  'Run L2H ATS Compatibility Evaluation →'
+                )}
+              </Button>
+            </div>
+
+            {/* Right: Compatibility & Eligibility Scorecard */}
+            <div className="lg:col-span-6 bg-brand-paper border-[1.5px] border-brand-ink p-6 shadow-editorial space-y-6">
+              {analysisResult ? (
+                <>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-brand-ink/20">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="editorial-badge bg-brand-orange text-white text-[10px]">
+                          L2H Compatibility Estimate
+                        </span>
+                        <Badge
+                          variant={
+                            analysisResult.eligibilityStatus === 'ELIGIBLE'
+                              ? 'yellow'
+                              : analysisResult.eligibilityStatus === 'POTENTIALLY_ELIGIBLE'
+                              ? 'default'
+                              : 'rose'
+                          }
+                        >
+                          {analysisResult.eligibilityStatus.replace(/_/g, ' ')}
+                        </Badge>
+                      </div>
+                      <h3 className="font-display text-2xl font-bold uppercase text-brand-ink">
+                        {analysisResult.jobTitle}
+                      </h3>
+                      <p className="text-[11px] text-brand-ink/70 font-semibold mt-0.5">
+                        {analysisResult.eligibilityReason}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center p-3 bg-brand-cream border border-brand-ink/30 shrink-0">
+                      <ProgressRing
+                        progress={analysisResult.compatibilityScore}
+                        size={84}
+                        strokeWidth={7}
+                        color="#FFA2B6"
+                      />
+                      <span className="font-display text-2xl font-bold text-brand-ink mt-1">
+                        {analysisResult.compatibilityScore}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Multi-Dimension Breakdown (9 configurable dimensions) */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-ink/70 block">
+                      Weighted Scoring Breakdown:
+                    </span>
+                    <div className="space-y-1.5 text-xs">
+                      {Object.values(analysisResult.dimensions).map((dim) => (
+                        <div
+                          key={dim.dimension}
+                          className="p-2 bg-brand-cream border border-brand-ink/20 flex items-center justify-between"
+                        >
+                          <div>
+                            <span className="font-bold text-brand-ink">{dim.dimension}</span>
+                            <span className="text-[10px] text-brand-ink/60 ml-2">({dim.weightPercent}% wt)</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-bold text-brand-ink">{dim.score}%</span>
+                            <span className="text-[10px] text-brand-ink/60 ml-1.5 block sm:inline">
+                              contrib: +{dim.weightedContribution}%
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="p-8 text-center text-xs text-brand-ink/60">
+                  Ready to evaluate. Click the button to calculate compatibility.
+                </div>
+              )}
+            </div>
           </div>
 
-          <textarea
-            rows={12}
-            value={jobDescription}
-            onChange={(e) => setJobDescription(e.target.value)}
-            className="w-full p-4 bg-brand-cream border border-brand-ink text-xs font-mono text-brand-ink leading-relaxed focus:outline-none resize-none"
-          />
-
-          <Button variant="primary" size="md" fullWidth onClick={handleScan} disabled={isScanning}>
-            {isScanning ? (
-              <RefreshCw className="w-4 h-4 animate-spin mr-1.5 inline" />
-            ) : (
-              <Sparkles className="w-4 h-4 mr-1.5 inline" />
-            )}
-            {isScanning ? 'Tokenizing & Evaluating...' : 'Run Compatibility Scan'}
-          </Button>
-        </div>
-
-        {/* Right: Telemetry & Results */}
-        <div className="lg:col-span-6 space-y-6">
+          {/* Matched vs Missing Gaps (Required vs Preferred) */}
           {analysisResult && (
-            <div className="bg-brand-paper border-[1.5px] border-brand-ink p-6 shadow-editorial space-y-6">
-              <div className="flex items-center justify-between pb-3 border-b border-brand-ink/20">
-                <div>
-                  <span className="editorial-badge bg-brand-yellow text-brand-ink text-[10px] mb-1">
-                    Explainable Evaluation
-                  </span>
-                  <h3 className="font-display text-2xl font-bold uppercase text-brand-ink">
-                    Learn-2-Hire Compatibility Estimate
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Strengths & Matched Skills */}
+              <div className="bg-brand-paper border-[1.5px] border-brand-ink p-6 shadow-editorial space-y-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-brand-orange" />
+                  <h3 className="font-display text-xl font-bold uppercase text-brand-ink">
+                    Matched Required Competencies ({analysisResult.matchedRequiredSkills.length})
                   </h3>
-                  <span className="text-[10px] text-brand-ink/60 italic block">
-                    (Not an official third-party ATS guarantee)
-                  </span>
                 </div>
-                <div className="text-right">
-                  <span className="font-display text-4xl font-bold text-brand-orange">
-                    {analysisResult.compatibilityScore}%
-                  </span>
-                </div>
-              </div>
-
-              {/* Matched Keywords */}
-              <div className="space-y-2">
-                <span className="text-xs font-extrabold uppercase tracking-widest text-brand-ink/70 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-brand-orange" /> Matched Keywords ({analysisResult.matchedKeywords.length})
-                </span>
                 <div className="flex flex-wrap gap-1.5">
-                  {analysisResult.matchedKeywords.map((kw: string) => (
-                    <span key={kw} className="text-xs font-bold px-2 py-0.5 bg-brand-cream border border-brand-ink/30 text-brand-ink">
-                      {kw}
+                  {analysisResult.matchedRequiredSkills.map((sk) => (
+                    <span key={sk} className="text-xs font-bold px-2.5 py-1 bg-brand-cream border border-brand-ink/30 text-brand-ink">
+                      {sk} &#10003;
                     </span>
                   ))}
+                  {analysisResult.matchedRequiredSkills.length === 0 && (
+                    <span className="text-xs text-brand-ink/60 italic">No exact required skills matched in resume.</span>
+                  )}
                 </div>
+
+                {analysisResult.matchedPreferredSkills.length > 0 && (
+                  <div className="pt-2">
+                    <span className="text-[10px] font-extrabold uppercase text-brand-ink/60 block mb-1.5">
+                      Matched Preferred Skills:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {analysisResult.matchedPreferredSkills.map((sk) => (
+                        <span key={sk} className="text-[11px] font-semibold px-2 py-0.5 bg-brand-cream border border-brand-ink/20 text-brand-ink">
+                          {sk}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Missing Keywords */}
-              <div className="space-y-2">
-                <span className="text-xs font-extrabold uppercase tracking-widest text-brand-rose flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-brand-rose" /> Missing Keyword Requirements ({analysisResult.missingKeywords.length})
-                </span>
+              {/* Critical & Optional Gaps */}
+              <div className="bg-brand-paper border-[1.5px] border-brand-ink p-6 shadow-editorial space-y-4">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-brand-rose" />
+                  <h3 className="font-display text-xl font-bold uppercase text-brand-ink">
+                    Missing Required Skills ({analysisResult.missingRequiredSkills.length})
+                  </h3>
+                </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {analysisResult.missingKeywords.map((kw: string) => (
-                    <span key={kw} className="text-xs font-bold px-2 py-0.5 bg-brand-cream border border-brand-rose text-brand-rose">
-                      + {kw}
+                  {analysisResult.missingRequiredSkills.map((sk) => (
+                    <span key={sk} className="text-xs font-bold px-2.5 py-1 bg-brand-cream border border-brand-rose text-brand-rose">
+                      ! {sk}
                     </span>
                   ))}
+                  {analysisResult.missingRequiredSkills.length === 0 && (
+                    <span className="text-xs text-brand-ink/80 font-bold">&#10003; All core required skills satisfied!</span>
+                  )}
                 </div>
+
+                {analysisResult.missingPreferredSkills.length > 0 && (
+                  <div className="pt-2">
+                    <span className="text-[10px] font-extrabold uppercase text-brand-ink/60 block mb-1.5">
+                      Missing Preferred (Optional) Skills:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {analysisResult.missingPreferredSkills.map((sk) => (
+                        <span key={sk} className="text-[11px] font-medium px-2 py-0.5 bg-brand-paper border border-brand-ink/30 text-brand-ink/70">
+                          {sk}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Actionable Improvement Recommendations (Phase 33: What, Why, How) */}
+          {analysisResult && analysisResult.recommendations.length > 0 && (
+            <div className="bg-brand-paper border-[1.5px] border-brand-ink p-6 sm:p-8 shadow-editorial space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-brand-ink/20">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-brand-orange" />
+                  <h3 className="font-display text-2xl font-bold uppercase text-brand-ink">
+                    Prioritized Improvement Recommendations
+                  </h3>
+                </div>
+                <Badge variant="rose">Actionable Gaps</Badge>
               </div>
 
-              {/* Actionable Recommendations */}
-              <div className="p-3 bg-brand-cream border border-brand-ink/20 space-y-1.5 text-xs">
-                <span className="font-bold text-brand-ink uppercase block">Actionable Enhancements:</span>
-                {analysisResult.recommendations.map((rec: string, i: number) => (
-                  <div key={i} className="text-brand-ink/80">&bull; {rec}</div>
+              <div className="space-y-3">
+                {analysisResult.recommendations.map((rec) => (
+                  <div key={rec.id} className="p-4 bg-brand-cream border border-brand-ink/30 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="font-bold text-brand-ink text-sm uppercase">
+                        {rec.what}
+                      </div>
+                      <span className="editorial-badge bg-brand-paper text-brand-ink text-[10px]">
+                        Est. Impact: +{rec.impactScoreBoostEstimated}%
+                      </span>
+                    </div>
+                    <p className="text-brand-ink/85 font-medium">
+                      <strong>Why:</strong> {rec.why}
+                    </p>
+                    <p className="text-brand-ink/75 font-mono text-[11px]">
+                      <strong>How:</strong> {rec.how}
+                    </p>
+                  </div>
                 ))}
               </div>
 
-              <div className="pt-2 flex justify-between">
-                <Link href={ROUTES.app.resume.builder}>
-                  <Button variant="outline" size="sm">Edit in Resume Builder</Button>
+              <div className="pt-2 flex flex-wrap gap-3">
+                <Link href={ROUTES.app.learning.roadmap}>
+                  <Button variant="primary" size="sm">
+                    Remediate Gaps via Career Roadmap →
+                  </Button>
                 </Link>
                 <Link href={ROUTES.app.opportunities.jobs}>
-                  <Button variant="accent" size="sm">Apply to Matched Jobs →</Button>
+                  <Button variant="outline" size="sm">
+                    Browse Verified Openings →
+                  </Button>
                 </Link>
               </div>
             </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
